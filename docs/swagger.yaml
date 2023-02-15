@@ -1,0 +1,19 @@
+info:
+  contact: {}
+  license: {}
+paths:
+  /api/v1/health/ping:
+    get:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{"code": 200, "data": {"ping": "pong"}}'
+          schema:
+            type: string
+      summary: ping
+      tags:
+      - health
+swagger: "2.0"

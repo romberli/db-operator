@@ -1,0 +1,113 @@
+# description: configuration file path, if it's specified as relative path,
+# then directory of binary file will be the base directory of configuration file,
+# it is recommended to specify absolute path.
+# command-line-argument: --config
+# type: string
+# default: None
+config: go_template_web.yaml
+
+# description: specify whether das runs as daemon mode, if true, das will run as a daemon process.
+# command-line-argument: --daemon
+# type: bool
+# default: false
+daemon: false
+
+# log configuration
+log:
+  # description: log file path, if it's specified as relative path,
+  # then directory of binary file will be the base directory of log file,
+  # it is recommended to specify absolute path.
+  # command-line-argument: --log-file
+  # type: string
+  # default: log/run.log
+  file: log/run.log
+  # description: log level
+  # command-line-argument: --log-level
+  # type: string
+  # available: [debug, info, warn, error, fatal]
+  # default: info
+  level: info
+  # description: log format
+  # command-line-argument: --log-format
+  # type: string
+  # available: [text, json]
+  # default: text
+  format: text
+  # description: log file max size
+  # command-line-argument: --log-max-size
+  # unit: MB
+  # type: int
+  # default: 100
+  maxSize: 100
+  # description: specify how many days the log file will be kept after rotating,
+  # older than max-days files will be removed automatically.
+  # command-line-argument: --log-max-days
+  # type: int
+  # default: 7
+  maxDays: 7
+  # description: specify how many files will be kept after rotating,
+  # the oldest log files will be removed automatically.
+  # command-line-argument: --log-max-backups
+  # type: int
+  # default: 5
+  maxBackups: 5
+  # description: specify if rotating the log file on starting up
+  # command-line-argument: --log-rotate-on-startup
+  # type: bool
+  # default: false
+  rotateOnStartup: false
+
+# server configuration
+server:
+  # description: specify the server listening address, format: host:port
+  # command-line-argument: --server-addr
+  # type: string
+  # default: 0.0.0.0:6090
+  addr: "0.0.0.0:6090"
+  # description: pid file path, if it's specified as relative path,
+  # then directory of binary file will be the base directory of log file,
+  # it is recommended to specify absolute path.
+  # command-line-argument: --server-pid-file
+  # type: string
+  # default: go_template_web.pid
+  pidFile: go_template_web.pid
+  # description: specify the read timeout of http request, 0 means no timeout
+  # command-line-argument: --server-read-timeout
+  # unit: second
+  # type: int
+  # available: 0 - 60
+  # default: 5
+  readTimeout: 5
+  # description: specify the write timeout of http resp, 0 means no timeout
+  # command-line-argument: --server-write-timeout
+  # unit: second
+  # type: int
+  # available: 0 - 60
+  # default: 10
+  writeTimeout: 10
+  # description: pprof configuration
+  pprof:
+    # description: specify if enable the pprof
+    # command-line-argument: --server-pprof-enabled
+    # type: bool
+    # default: false
+    enabled: false
+  # router configuration
+  router:
+    # description: specify the alternative base path, this base path will not impact the original api path,
+    # but adds additional api paths with specified base path
+    # command-line-argument: --server-router-alternative-base-path
+    # type: string
+    # default: ""
+    alternativeBasePath: ""
+    # description: specify the real body path of the json body of the http request
+    # command-line-argument: --server-router-alternative-body-path
+    # type: string
+    # default: ""
+    alternativeBodyPath: ""
+    # description: specify the http return code when the server encountered an error
+    # command-line-argument: --server-router-http-error-code
+    # type: int
+    # available: [200, 500]
+    # default: 500
+    httpErrorCode: 500
