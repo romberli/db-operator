@@ -1,4 +1,4 @@
-module github.com/romberli/go-template-web
+module github.com/romberli/db-operator
 
 go 1.16
 

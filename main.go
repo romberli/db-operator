@@ -16,7 +16,7 @@ limitations under the License.
 
 package main
 
-import "github.com/romberli/go-template-web/cmd"
+import "github.com/romberli/db-operator/cmd"
 
 func main() {
 	cmd.Execute()

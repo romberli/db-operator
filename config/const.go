@@ -23,7 +23,7 @@ import (
 
 // global constant
 const (
-	DefaultCommandName = "go-template-web"
+	DefaultCommandName = "db-operator"
 	DefaultBaseDir     = constant.CurrentDir
 	// daemon
 	DefaultDaemon  = false

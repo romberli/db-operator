@@ -7,15 +7,15 @@
 ./bin/*
 *.pid
 *.test
-go-template-web
+db-operator
 
 # config
 .idea/
 */.idea/
 .DS_Store
 test/*.json
-go_template_web.yaml
-config/go_template_web.yaml
+db_operator.yaml
+config/db_operator.yaml
 
 # output
 *.out
@@ -29,4 +29,4 @@ release/*
 test/http-client.env.json
 .vscode/
 .test
-go_template_web.pid
+db_operator.pid

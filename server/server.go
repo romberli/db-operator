@@ -23,7 +23,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/romberli/go-template-web/router"
+	"github.com/romberli/db-operator/router"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/log"
 )

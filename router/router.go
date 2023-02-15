@@ -1,13 +1,13 @@
 package router
 
 import (
-	"github.com/romberli/go-template-web/api/v1/health"
+	"github.com/romberli/db-operator/api/v1/health"
 	"net/http"
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/errors"
-	"github.com/romberli/go-template-web/config"
+	"github.com/romberli/db-operator/config"
 	"github.com/romberli/log"
 	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
@@ -15,7 +15,7 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	_ "github.com/romberli/go-template-web/docs"
+	_ "github.com/romberli/db-operator/docs"
 )
 
 const (
