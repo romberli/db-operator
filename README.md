@@ -1,2 +1,2 @@
-# go-template-web
-go-template-web is a template of golang web server.
+# db-operator
+db operator is a database operation tool
