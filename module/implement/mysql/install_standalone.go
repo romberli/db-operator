@@ -6,5 +6,5 @@ type Standalone struct {
 	InstallDirType int               `json:"install_type"`
 	HostIP         string            `json:"host_ip"`
 	PortNum        int               `json:"port_num"`
-	Params         map[string]string `json:"params"`
+	Params         map[string]string `json:"paramter"`
 }

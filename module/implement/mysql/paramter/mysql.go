@@ -1,4 +1,4 @@
-package params
+package paramter
 
 const (
 	DefaultPrompt  = `[\\u@\\h:\\p][\\d]>`

@@ -1,4 +1,4 @@
-package params
+package paramter
 
 import "github.com/romberli/go-util/constant"
 
