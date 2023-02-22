@@ -10,6 +10,7 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/gin-contrib/pprof v1.4.0
 	github.com/gin-gonic/gin v1.8.1
+	github.com/hashicorp/go-version v1.6.0
 	github.com/pingcap/errors v0.11.5-0.20211224045212-9687c2b0f87c
 	github.com/romberli/go-multierror v1.1.2
 	github.com/romberli/go-util v0.3.17-0.20221219110924-82346681020c

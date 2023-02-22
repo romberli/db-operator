@@ -18,18 +18,15 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-
 	"github.com/pingcap/errors"
 	"github.com/romberli/db-operator/config"
 	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/log"
-	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
+	"path/filepath"
 )
 
 const defaultConfigFileType = "yaml"
@@ -59,6 +56,31 @@ var (
 	serverRouterAlternativeBasePath string
 	serverRouterAlternativeBodyPath string
 	serverRouterHTTPErrorCode       int
+	// mysql
+	mysqlVersion                       string
+	mysqlInstallationPackageDir        string
+	mysqlParameterMaxConnections       int
+	mysqlParameterInnodbBufferPoolSize int
+	mysqlParameterInnodbIOCapacity     int
+	mysqlUserOSUser                    string
+	mysqlUserOSPass                    string
+	mysqlUserRootPass                  string
+	mysqlUserAdminUser                 string
+	mysqlUserAdminPass                 string
+	mysqlUserMySQLDMultiUser           string
+	mysqlUserMySQLDMultiPass           string
+	mysqlUserReplicationUser           string
+	mysqlUserReplicationPass           string
+	mysqlUserMonitorUser               string
+	mysqlUserMonitorPass               string
+	mysqlUserDASUser                   string
+	mysqlUserDASPass                   string
+	// pmm
+	pmmServerAddr                   string
+	pmmServerUser                   string
+	pmmServerPass                   string
+	pmmClientVersion                string
+	pmmClientInstallationPackageDir string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -124,7 +146,31 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&serverRouterAlternativeBasePath, "server-router-alternative-base-path", constant.DefaultRandomString, fmt.Sprintf("specify the alternative base path(default: %s)", config.DefaultServerRouterAlternativeBasePath))
 	rootCmd.PersistentFlags().StringVar(&serverRouterAlternativeBodyPath, "server-router-alternative-body-path", constant.DefaultRandomString, fmt.Sprintf("specify the alternative body path of the json body of the http request(default: %s)", config.DefaultServerRouterAlternativeBodyPath))
 	rootCmd.PersistentFlags().IntVar(&serverRouterHTTPErrorCode, "server-router-http-error-code", constant.DefaultRandomInt, fmt.Sprintf("specify the http return code when the server encountered an error(default: %d)", config.DefaultServerRouterHTTPErrorCode))
-
+	// mysql
+	rootCmd.PersistentFlags().StringVar(&mysqlVersion, "mysql-version", constant.DefaultRandomString, fmt.Sprintf("specify the default mysql version(default: %s)", config.DefaultMySQLVersion))
+	rootCmd.PersistentFlags().StringVar(&mysqlInstallationPackageDir, "mysql-installation-package-dir", constant.DefaultRandomString, fmt.Sprintf("specify the mysql binary installation package directory(default: %s)", config.DefaultMySQLInstallationPackageDir))
+	rootCmd.PersistentFlags().IntVar(&mysqlParameterMaxConnections, "mysql-parameter-max-connections", constant.DefaultRandomInt, fmt.Sprintf("specify the default max connections(default: %d)", config.DefaultMySQLParameterMaxConnections))
+	rootCmd.PersistentFlags().IntVar(&mysqlParameterInnodbBufferPoolSize, "mysql-parameter-innodb-buffer-pool-size", constant.DefaultRandomInt, fmt.Sprintf("specify the default innodb buffer pool size(default: %d)", config.DefaultMySQLParameterInnodbBufferPoolSize))
+	rootCmd.PersistentFlags().IntVar(&mysqlParameterInnodbIOCapacity, "mysql-parameter-innodb-io-capacity", constant.DefaultRandomInt, fmt.Sprintf("specify the default innodb io capacity(default: %d)", config.DefaultMySQLParameterInnodbIOCapacity))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserOSUser, "mysql-user-os-user", constant.DefaultRandomString, fmt.Sprintf("specify the default os user(default: %s)", config.DefaultMySQLUserOSUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserOSPass, "mysql-user-os-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default os password(default: %s)", config.DefaultMySQLUserOSPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserRootPass, "mysql-user-root-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default root password(default: %s)", config.DefaultMySQLUserRootPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserAdminUser, "mysql-user-admin-user", constant.DefaultRandomString, fmt.Sprintf("specify the default admin user(default: %s)", config.DefaultMySQLUserAdminUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserAdminPass, "mysql-user-admin-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default admin password(default: %s)", config.DefaultMySQLUserAdminPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMySQLDMultiUser, "mysql-user-mysqld-multi-user", constant.DefaultRandomString, fmt.Sprintf("specify the default mysqld multi user(default: %s)", config.DefaultMySQLUserMySQLDMultiUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMySQLDMultiPass, "mysql-user-mysqld-multi-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default mysqld multi password(default: %s)", config.DefaultMySQLUserMySQLDMultiPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserReplicationUser, "mysql-user-replication-user", constant.DefaultRandomString, fmt.Sprintf("specify the default replication user(default: %s)", config.DefaultMySQLUserReplicationUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserReplicationPass, "mysql-user-replication-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default replication password(default: %s)", config.DefaultMySQLUserReplicationPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMonitorUser, "mysql-user-monitor-user", constant.DefaultRandomString, fmt.Sprintf("specify the default monitor user(default: %s)", config.DefaultMySQLUserMonitorUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMonitorPass, "mysql-user-monitor-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default monitor password(default: %s)", config.DefaultMySQLUserMonitorPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserDASUser, "mysql-user-das-user", constant.DefaultRandomString, fmt.Sprintf("specify the default das user(default: %s)", config.DefaultMySQLUserDASUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserDASPass, "mysql-user-das-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default das password(default: %s)", config.DefaultMySQLUserDASPass))
+	// pmm
+	rootCmd.PersistentFlags().StringVar(&pmmServerAddr, "pmm-server-addr", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server address(default: %s)", config.DefaultPMMServerAddr))
+	rootCmd.PersistentFlags().StringVar(&pmmServerUser, "pmm-server-user", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server user(default: %s)", config.DefaultPMMServerUser))
+	rootCmd.PersistentFlags().StringVar(&pmmServerPass, "pmm-server-pass", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server password(default: %s)", config.DefaultPMMServerPass))
+	rootCmd.PersistentFlags().StringVar(&pmmClientVersion, "pmm-client-version", constant.DefaultRandomString, fmt.Sprintf("specify the pmm client version(default: %s)", config.DefaultPMMClientVersion))
+	rootCmd.PersistentFlags().StringVar(&pmmClientInstallationPackageDir, "pmm-client-installation-package-dir", constant.DefaultRandomString, fmt.Sprintf("specify the pmm client binary installation package directory(default: %s)", config.DefaultPMMClientInstallationPackageDir))
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
@@ -212,84 +258,6 @@ func ReadConfigFile() (err error) {
 	}
 
 	return nil
-}
-
-// OverrideConfigByCLI read configuration from command line interface, it will override the config file configuration
-func OverrideConfigByCLI() (err error) {
-	// override config
-	if cfgFile != constant.EmptyString && cfgFile != constant.DefaultRandomString {
-		viper.Set(config.ConfKey, cfgFile)
-	}
-
-	// override daemon
-	if daemonStr != constant.DefaultRandomString {
-		daemon, err := cast.ToBoolE(daemonStr)
-		if err != nil {
-			return errors.Trace(err)
-		}
-
-		viper.Set(config.DaemonKey, daemon)
-	}
-
-	// override log
-	if logFileName != constant.DefaultRandomString {
-		viper.Set(config.LogFileNameKey, logFileName)
-	}
-	if logLevel != constant.DefaultRandomString {
-		logLevel = strings.ToLower(logLevel)
-		viper.Set(config.LogLevelKey, logLevel)
-	}
-	if logFormat != constant.DefaultRandomString {
-		logLevel = strings.ToLower(logFormat)
-		viper.Set(config.LogFormatKey, logFormat)
-	}
-	if logMaxSize != constant.DefaultRandomInt {
-		viper.Set(config.LogMaxSizeKey, logMaxSize)
-	}
-	if logMaxDays != constant.DefaultRandomInt {
-		viper.Set(config.LogMaxDaysKey, logMaxDays)
-	}
-	if logMaxBackups != constant.DefaultRandomInt {
-		viper.Set(config.LogMaxBackupsKey, logMaxBackups)
-	}
-	if logRotateOnStartupStr != constant.DefaultRandomString {
-		rotateOnStartup, err := cast.ToBoolE(logRotateOnStartupStr)
-		if err != nil {
-			return errors.Trace(err)
-		}
-
-		viper.Set(config.LogRotateOnStartupKey, rotateOnStartup)
-	}
-
-	// override server
-	if serverAddr != constant.DefaultRandomString {
-		viper.Set(config.ServerAddrKey, serverAddr)
-	}
-	if serverPidFile != constant.DefaultRandomString {
-		viper.Set(config.ServerPidFileKey, serverPidFile)
-	}
-	if serverReadTimeout != constant.DefaultRandomInt {
-		viper.Set(config.ServerReadTimeoutKey, serverReadTimeout)
-	}
-	if serverWriteTimeout != constant.DefaultRandomInt {
-		viper.Set(config.ServerWriteTimeoutKey, serverWriteTimeout)
-	}
-	if serverPProfEnabledStr != constant.DefaultRandomString {
-		pprofEnabled, err := cast.ToBoolE(serverPProfEnabledStr)
-		if err != nil {
-			return errors.Trace(err)
-		}
-
-		viper.Set(config.ServerPProfEnabledKey, pprofEnabled)
-	}
-
-	// validate configuration
-	err = config.ValidateConfig()
-	if err != nil {
-		return message.NewMessage(message.ErrValidateConfig, err)
-	}
-
-	return err
 }
 
 // UsageTemplateWithoutDefault returns a usage template which does not contain default part

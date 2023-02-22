@@ -60,6 +60,8 @@ const (
 	ErrGetResponseCode                         = 400053
 	ErrSetResponseCode                         = 400054
 	ErrGinRecovery                             = 400055
+	ErrNotValidFilePath                        = 400056
+	ErrOverrideConfigByCLI                     = 400057
 )
 
 func initErrorMessage() {
@@ -114,4 +116,6 @@ func initErrorMessage() {
 	Messages[ErrNotValidTimeLayout] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidTimeLayout, "time layout must be formatted as yyyy-MM-dd HH:mm:ss, %s is not valid")
 	Messages[ErrNotValidTimeDuration] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidTimeDuration, "time duration must be formatted, e.g. such as 300ms, -1.5h or 2h45m, %s is not valid")
 	Messages[ErrGinRecovery] = config.NewErrMessage(DefaultMessageHeader, ErrGinRecovery, "gin Recovery: panic recovered")
+	Messages[ErrNotValidFilePath] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidFilePath, "file path must be either unix or windows path, %s is not valid")
+	Messages[ErrOverrideConfigByCLI] = config.NewErrMessage(DefaultMessageHeader, ErrOverrideConfigByCLI, "override config by command line interface failed")
 }

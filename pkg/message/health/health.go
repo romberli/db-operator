@@ -13,8 +13,8 @@ func init() {
 
 const (
 	// info
-	InfoHealthStatus = 209001
-	InfoHealthPing   = 200102
+	InfoHealthStatus = 201001
+	InfoHealthPing   = 201002
 )
 
 func initHealthDebugMessage() {

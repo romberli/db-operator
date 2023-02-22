@@ -111,3 +111,142 @@ server:
     # available: [200, 500]
     # default: 500
     httpErrorCode: 500
+
+# mysql configuration
+mysql:
+  # description: specify the default mysql version
+  # command-line-argument: --mysql-version
+  # type: string
+  # default: 8.0.32
+  version: 8.0.32
+  # description: specify the mysql binary installation package directory
+  # command-line-argument: --mysql-installation-package-dir
+  # type: string
+  # default: /data/software/mysql
+  installationPackageDir: /data/software/mysql
+  # parameter configuration
+  parameter:
+    # description: specify the default max connections
+    # command-line-argument: --mysql-parameter-max-connections
+    # type: int
+    # default: 2000
+    maxConnections: 2000
+    # description: specify the default innodb buffer pool size
+    # command-line-argument: --mysql-parameter-innodb-buffer-pool-size
+    # unit: MB
+    # type: int
+    # default: 1024
+    innodbBufferPoolSize: 1024
+    # description: specify the default innodb io capacity
+    # command-line-argument: --mysql-parameter-innodb-io-capacity
+    # type: int
+    # default: 1000
+    innodbIOCapacity: 1000
+  # user configuration
+  user:
+    # description: specify the os user
+    # command-line-argument: --mysql-user-os-user
+    # type: string
+    # default: das
+    osUser: das
+    # description: specify the os password
+    # command-line-argument: --mysql-user-os-pass
+    # type: string
+    # default: das
+    osPass: das
+    # description: specify the default default root password
+    # command-line-argument: --mysql-user-root-pass
+    # type: string
+    # default: root
+    rootPass: root
+    # description: specify the default admin user
+    # command-line-argument: --mysql-user-admin-user
+    # type: string
+    # default: admin
+    adminUser: admin
+    # description: specify the default admin password
+    # command-line-argument: --mysql-user-admin-pass
+    # type: string
+    # default: admin
+    adminPass: admin
+    # description: specify the default mysqld-multi user
+    # command-line-argument: --mysql-user-mysqld-multi-user
+    # type: string
+    # default: mysqld_multi
+    mysqldMultiUser: mysqld_multi
+    # description: specify the default mysqld-multi password
+    # command-line-argument: --mysql-user-mysqld-multi-pass
+    # type: string
+    # default: mysqld_multi
+    mysqldMultiPass: mysqld_multi
+    # description: specify the default replication user
+    # command-line-argument: --mysql-user-replication-user
+    # type: string
+    # default: replication
+    replicationUser: replication
+    # description: specify the default replication password
+    # command-line-argument: --mysql-user-replication-pass
+    # type: string
+    # default: replication
+    replicationPass: replication
+    # description: specify the default monitor user
+    # command-line-argument: --mysql-user-monitor-user
+    # type: string
+    # default: pmm
+    monitorUser: pmm
+    # description: specify the default monitor password
+    # command-line-argument: --mysql-user-monitor-pass
+    # type: string
+    # default: pmm
+    monitorPass: pmm
+    # description: specify the default das user
+    # command-line-argument: --mysql-user-das-user
+    # type: string
+    # default: das
+    dasUser: das
+    # description: specify the default das password
+    # command-line-argument: --mysql-user-das-pass
+    # type: string
+    # default: das
+    dasPass: das
+
+# pmm configuration
+pmm:
+  # server configuration
+  server:
+    # description: specify the default pmm server address
+    # command-line-argument: --pmm-server-addr
+    # type: string
+    # default: 127.0.0.1:443
+    addr: 127.0.0.1:443
+    # description: specify the default pmm server user
+    # command-line-argument: --pmm-server-user
+    # type: string
+    # default: admin
+    user: admin
+    # description: specify the default pmm server password
+    # command-line-argument: --pmm-server-pass
+    # type: string
+    # default: admin
+    pass: admin
+  # client configuration
+  client:
+    # description: specify the default pmm client version
+    # command-line-argument: --pmm-client-version
+    # type: string
+    # default: 2.34.0
+    version: 2.34.0
+    # description: specify the pmm client installation package directory
+    # command-line-argument: --pmm-client-installation-package-dir
+    # type: string
+    # default: /data/software/mysql
+    installationPackageDir: /data/software/mysql
+
+
+
+
+
+
+
+
+

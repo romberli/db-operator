@@ -21,7 +21,7 @@ import (
 	"net/http"
 )
 
-// global constant
+// global varariable
 const (
 	DefaultCommandName = "db-operator"
 	DefaultBaseDir     = constant.CurrentDir
@@ -39,7 +39,6 @@ const (
 	MinLogMaxBackups       = 1
 	MaxLogMaxBackups       = constant.MaxInt
 	DefaultRotateOnStartup = false
-
 	// server
 	DefaultServerAddr                      = "0.0.0.0:80"
 	DefaultServerReadTimeout               = 5
@@ -52,9 +51,40 @@ const (
 	DefaultServerRouterAlternativeBasePath = constant.EmptyString
 	DefaultServerRouterAlternativeBodyPath = constant.EmptyString
 	DefaultServerRouterHTTPErrorCode       = http.StatusInternalServerError
+	// mysql
+	DefaultMySQLVersion                       = "8.0.32"
+	DefaultMySQLInstallationPackageDir        = "/data/software/mysql"
+	MinMySQLParameterMaxConnections           = 1
+	MaxMySQLParameterMaxConnections           = 10000
+	DefaultMySQLParameterMaxConnections       = 2000
+	MinMySQLParameterInnodbBufferPoolSize     = 1
+	MaxMySQLParameterInnodbBufferPoolSize     = 1024 * 1024 * 1024
+	DefaultMySQLParameterInnodbBufferPoolSize = 1024
+	MinMySQLParameterInnodbIOCapacity         = 1
+	MaxMySQLParameterInnodbIOCapacity         = 10000000
+	DefaultMySQLParameterInnodbIOCapacity     = 1000
+	DefaultMySQLUserOSUser                    = "root"
+	DefaultMySQLUserOSPass                    = "root"
+	DefaultMySQLUserRootPass                  = "root"
+	DefaultMySQLUserAdminUser                 = "admin"
+	DefaultMySQLUserAdminPass                 = "admin"
+	DefaultMySQLUserMySQLDMultiUser           = "mysqld_multi"
+	DefaultMySQLUserMySQLDMultiPass           = "mysqld_multi"
+	DefaultMySQLUserReplicationUser           = "replication"
+	DefaultMySQLUserReplicationPass           = "replication"
+	DefaultMySQLUserMonitorUser               = "pmm"
+	DefaultMySQLUserMonitorPass               = "pmm"
+	DefaultMySQLUserDASUser                   = "das"
+	DefaultMySQLUserDASPass                   = "das"
+	// pmm
+	DefaultPMMServerAddr                   = "127.0.0.1:443"
+	DefaultPMMServerUser                   = "admin"
+	DefaultPMMServerPass                   = "admin"
+	DefaultPMMClientVersion                = "2.34.0"
+	DefaultPMMClientInstallationPackageDir = "/data/software/mysql"
 )
 
-// configuration constant
+// configuration varariable
 const (
 	// config
 	ConfKey = "config"
@@ -77,4 +107,29 @@ const (
 	ServerRouterAlternativeBasePathKey = "server.router.alternativeBasePath"
 	ServerRouterAlternativeBodyPathKey = "server.router.alternativeBodyPath"
 	ServerRouterHTTPErrorCodeKey       = "server.router.httpErrorCode"
+	// mysql
+	MySQLVersionKey                       = "mysql.version"
+	MySQLInstallationPackageDirKey        = "mysql.installationPackageDir"
+	MySQLParameterMaxConnectionsKey       = "mysql.parameter.maxConnections"
+	MySQLParameterInnodbBufferPoolSizeKey = "mysql.parameter.innodbBufferPoolSize"
+	MySQLParameterInnodbIOCapacityKey     = "mysql.parameter.innodbIOCapacity"
+	MySQLUserOSUserKey                    = "mysql.user.osUser"
+	MySQLUserOSPassKey                    = "mysql.user.osPass"
+	MySQLUserRootPassKey                  = "mysql.user.rootPass"
+	MySQLUserAdminUserKey                 = "mysql.user.adminUser"
+	MySQLUserAdminPassKey                 = "mysql.user.adminPass"
+	MySQLUserMySQLDMultiUserKey           = "mysql.user.mysqldMultiUser"
+	MySQLUserMySQLDMultiPassKey           = "mysql.user.mysqldMultiPass"
+	MySQLUserReplicationUserKey           = "mysql.user.replicationUser"
+	MySQLUserReplicationPassKey           = "mysql.user.replicationPass"
+	MySQLUserMonitorUserKey               = "mysql.user.monitorUser"
+	MySQLUserMonitorPassKey               = "mysql.user.monitorPass"
+	MySQLUserDASUserKey                   = "mysql.user.dasUser"
+	MySQLUserDASPassKey                   = "mysql.user.dasPass"
+	// pmm
+	PMMServerAddrKey                   = "pmm.server.addr"
+	PMMServerUserKey                   = "pmm.server.user"
+	PMMServerPassKey                   = "pmm.server.pass"
+	PMMClientVersionKey                = "pmm.client.version"
+	PMMClientInstallationPackageDirKey = "pmm.client.installationPackageDir"
 )
