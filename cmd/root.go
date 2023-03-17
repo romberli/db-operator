@@ -22,6 +22,7 @@ import (
 	"github.com/romberli/db-operator/config"
 	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-util/constant"
+	"github.com/romberli/go-util/middleware/mysql"
 	"github.com/romberli/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -32,7 +33,7 @@ import (
 const defaultConfigFileType = "yaml"
 
 var (
-	// config
+	// common
 	baseDir string
 	cfgFile string
 	// daemon
@@ -56,9 +57,22 @@ var (
 	serverRouterAlternativeBasePath string
 	serverRouterAlternativeBodyPath string
 	serverRouterHTTPErrorCode       int
+	// database
+	dbDBOMySQLAddr           string
+	dbDBOMySQLName           string
+	dbDBOMySQLUser           string
+	dbDBOMySQLPass           string
+	dbPoolMaxConnections     int
+	dbPoolInitConnections    int
+	dbPoolMaxIdleConnections int
+	dbPoolMaxIdleTime        int
+	dbPoolMaxWaitTime        int
+	dbPoolMaxRetryCount      int
+	dbPoolKeepAliveInterval  int
 	// mysql
 	mysqlVersion                       string
 	mysqlInstallationPackageDir        string
+	mysqlInstallationTemporaryDir      string
 	mysqlParameterMaxConnections       int
 	mysqlParameterInnodbBufferPoolSize int
 	mysqlParameterInnodbIOCapacity     int
@@ -87,7 +101,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "db-operator",
 	Short: "db-operator",
-	Long:  `db-operator is a template of golang web server`,
+	Long:  `db-operator is a tmpl of golang web server`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// if no subcommand is set, it will print help information.
 		if len(args) == constant.ZeroInt {
@@ -119,7 +133,7 @@ func Execute() {
 }
 
 func init() {
-	// set usage template
+	// set usage tmpl
 	rootCmd.SetUsageTemplate(UsageTemplateWithoutDefault())
 
 	// Here you will define your flags and configuration settings.
@@ -146,31 +160,44 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&serverRouterAlternativeBasePath, "server-router-alternative-base-path", constant.DefaultRandomString, fmt.Sprintf("specify the alternative base path(default: %s)", config.DefaultServerRouterAlternativeBasePath))
 	rootCmd.PersistentFlags().StringVar(&serverRouterAlternativeBodyPath, "server-router-alternative-body-path", constant.DefaultRandomString, fmt.Sprintf("specify the alternative body path of the json body of the http request(default: %s)", config.DefaultServerRouterAlternativeBodyPath))
 	rootCmd.PersistentFlags().IntVar(&serverRouterHTTPErrorCode, "server-router-http-error-code", constant.DefaultRandomInt, fmt.Sprintf("specify the http return code when the server encountered an error(default: %d)", config.DefaultServerRouterHTTPErrorCode))
+	//  database
+	rootCmd.PersistentFlags().StringVar(&dbDBOMySQLAddr, "db-dbo-mysql-addr", constant.DefaultRandomString, fmt.Sprintf("specify dbo database address(format: host:port)(default: %s)", constant.DefaultMySQLAddr))
+	rootCmd.PersistentFlags().StringVar(&dbDBOMySQLName, "db-dbo-mysql-name", constant.DefaultRandomString, fmt.Sprintf("specify dbo database name(default: %s)", config.DefaultDBName))
+	rootCmd.PersistentFlags().StringVar(&dbDBOMySQLUser, "db-dbo-mysql-user", constant.DefaultRandomString, fmt.Sprintf("specify dbo database user name(default: %s)", config.DefaultDBUser))
+	rootCmd.PersistentFlags().StringVar(&dbDBOMySQLPass, "db-dbo-mysql-pass", constant.DefaultRandomString, fmt.Sprintf("specify dbo database user password(default: %s)", config.DefaultDBPass))
+	rootCmd.PersistentFlags().IntVar(&dbPoolMaxConnections, "db-pool-max-connections", constant.DefaultRandomInt, fmt.Sprintf("specify max connections of the connection pool(default: %d)", mysql.DefaultMaxConnections))
+	rootCmd.PersistentFlags().IntVar(&dbPoolInitConnections, "db-pool-init-connections", constant.DefaultRandomInt, fmt.Sprintf("specify initial connections of the connection pool(default: %d)", mysql.DefaultMaxIdleConnections))
+	rootCmd.PersistentFlags().IntVar(&dbPoolMaxIdleConnections, "db-pool-max-idle-connections", constant.DefaultRandomInt, fmt.Sprintf("specify max idle connections of the connection pool(default: %d)", mysql.DefaultMaxIdleConnections))
+	rootCmd.PersistentFlags().IntVar(&dbPoolMaxIdleTime, "db-pool-max-idle-time", constant.DefaultRandomInt, fmt.Sprintf("specify max idle time of connections of the connection pool, (default: %d, unit: seconds)", mysql.DefaultMaxIdleTime))
+	rootCmd.PersistentFlags().IntVar(&dbPoolMaxWaitTime, "db-pool-max-wait-time", constant.DefaultRandomInt, fmt.Sprintf("specify max wait time of getting a the connection from pool, (default: %d, unit: seconds)", mysql.DefaultMaxWaitTime))
+	rootCmd.PersistentFlags().IntVar(&dbPoolMaxRetryCount, "db-pool-max-retry-count", constant.DefaultRandomInt, fmt.Sprintf("specify max retry count of getting a the connection from pool, (default: %d)", mysql.DefaultMaxRetryCount))
+	rootCmd.PersistentFlags().IntVar(&dbPoolKeepAliveInterval, "db-pool-keep-alive-interval", constant.DefaultRandomInt, fmt.Sprintf("specify keep alive interval of connections of the connection pool(default: %d, unit: seconds)", mysql.DefaultKeepAliveInterval))
 	// mysql
 	rootCmd.PersistentFlags().StringVar(&mysqlVersion, "mysql-version", constant.DefaultRandomString, fmt.Sprintf("specify the default mysql version(default: %s)", config.DefaultMySQLVersion))
 	rootCmd.PersistentFlags().StringVar(&mysqlInstallationPackageDir, "mysql-installation-package-dir", constant.DefaultRandomString, fmt.Sprintf("specify the mysql binary installation package directory(default: %s)", config.DefaultMySQLInstallationPackageDir))
+	rootCmd.PersistentFlags().StringVar(&mysqlInstallationTemporaryDir, "mysql-installation-temporary-dir", constant.DefaultRandomString, fmt.Sprintf("specify the temporary directory for mysql installation(default: %s)", config.DefaultMySQLInstallationTemporaryDir))
 	rootCmd.PersistentFlags().IntVar(&mysqlParameterMaxConnections, "mysql-parameter-max-connections", constant.DefaultRandomInt, fmt.Sprintf("specify the default max connections(default: %d)", config.DefaultMySQLParameterMaxConnections))
 	rootCmd.PersistentFlags().IntVar(&mysqlParameterInnodbBufferPoolSize, "mysql-parameter-innodb-buffer-pool-size", constant.DefaultRandomInt, fmt.Sprintf("specify the default innodb buffer pool size(default: %d)", config.DefaultMySQLParameterInnodbBufferPoolSize))
 	rootCmd.PersistentFlags().IntVar(&mysqlParameterInnodbIOCapacity, "mysql-parameter-innodb-io-capacity", constant.DefaultRandomInt, fmt.Sprintf("specify the default innodb io capacity(default: %d)", config.DefaultMySQLParameterInnodbIOCapacity))
 	rootCmd.PersistentFlags().StringVar(&mysqlUserOSUser, "mysql-user-os-user", constant.DefaultRandomString, fmt.Sprintf("specify the default os user(default: %s)", config.DefaultMySQLUserOSUser))
 	rootCmd.PersistentFlags().StringVar(&mysqlUserOSPass, "mysql-user-os-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default os password(default: %s)", config.DefaultMySQLUserOSPass))
 	rootCmd.PersistentFlags().StringVar(&mysqlUserRootPass, "mysql-user-root-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default root password(default: %s)", config.DefaultMySQLUserRootPass))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserAdminUser, "mysql-user-admin-user", constant.DefaultRandomString, fmt.Sprintf("specify the default admin user(default: %s)", config.DefaultMySQLUserAdminUser))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserAdminPass, "mysql-user-admin-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default admin password(default: %s)", config.DefaultMySQLUserAdminPass))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserMySQLDMultiUser, "mysql-user-mysqld-multi-user", constant.DefaultRandomString, fmt.Sprintf("specify the default mysqld multi user(default: %s)", config.DefaultMySQLUserMySQLDMultiUser))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserMySQLDMultiPass, "mysql-user-mysqld-multi-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default mysqld multi password(default: %s)", config.DefaultMySQLUserMySQLDMultiPass))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserReplicationUser, "mysql-user-replication-user", constant.DefaultRandomString, fmt.Sprintf("specify the default replication user(default: %s)", config.DefaultMySQLUserReplicationUser))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserReplicationPass, "mysql-user-replication-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default replication password(default: %s)", config.DefaultMySQLUserReplicationPass))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserMonitorUser, "mysql-user-monitor-user", constant.DefaultRandomString, fmt.Sprintf("specify the default monitor user(default: %s)", config.DefaultMySQLUserMonitorUser))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserMonitorPass, "mysql-user-monitor-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default monitor password(default: %s)", config.DefaultMySQLUserMonitorPass))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserDASUser, "mysql-user-das-user", constant.DefaultRandomString, fmt.Sprintf("specify the default das user(default: %s)", config.DefaultMySQLUserDASUser))
-	rootCmd.PersistentFlags().StringVar(&mysqlUserDASPass, "mysql-user-das-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default das password(default: %s)", config.DefaultMySQLUserDASPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserAdminUser, "mysql:user-admin-user", constant.DefaultRandomString, fmt.Sprintf("specify the default admin user(default: %s)", config.DefaultMySQLUserAdminUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserAdminPass, "mysql:user-admin-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default admin password(default: %s)", config.DefaultMySQLUserAdminPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMySQLDMultiUser, "mysql:user-mysqld-multi-user", constant.DefaultRandomString, fmt.Sprintf("specify the default mysqld multi user(default: %s)", config.DefaultMySQLUserMySQLDMultiUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMySQLDMultiPass, "mysql:user-mysqld-multi-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default mysqld multi password(default: %s)", config.DefaultMySQLUserMySQLDMultiPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserReplicationUser, "mysql:user-replication-user", constant.DefaultRandomString, fmt.Sprintf("specify the default replication user(default: %s)", config.DefaultMySQLUserReplicationUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserReplicationPass, "mysql:user-replication-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default replication password(default: %s)", config.DefaultMySQLUserReplicationPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMonitorUser, "mysql:user-monitor-user", constant.DefaultRandomString, fmt.Sprintf("specify the default monitor user(default: %s)", config.DefaultMySQLUserMonitorUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserMonitorPass, "mysql:user-monitor-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default monitor password(default: %s)", config.DefaultMySQLUserMonitorPass))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserDASUser, "mysql:user-das-user", constant.DefaultRandomString, fmt.Sprintf("specify the default das user(default: %s)", config.DefaultMySQLUserDASUser))
+	rootCmd.PersistentFlags().StringVar(&mysqlUserDASPass, "mysql:user-das-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default das password(default: %s)", config.DefaultMySQLUserDASPass))
 	// pmm
 	rootCmd.PersistentFlags().StringVar(&pmmServerAddr, "pmm-server-addr", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server address(default: %s)", config.DefaultPMMServerAddr))
 	rootCmd.PersistentFlags().StringVar(&pmmServerUser, "pmm-server-user", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server user(default: %s)", config.DefaultPMMServerUser))
 	rootCmd.PersistentFlags().StringVar(&pmmServerPass, "pmm-server-pass", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server password(default: %s)", config.DefaultPMMServerPass))
 	rootCmd.PersistentFlags().StringVar(&pmmClientVersion, "pmm-client-version", constant.DefaultRandomString, fmt.Sprintf("specify the pmm client version(default: %s)", config.DefaultPMMClientVersion))
-	rootCmd.PersistentFlags().StringVar(&pmmClientInstallationPackageDir, "pmm-client-installation-package-dir", constant.DefaultRandomString, fmt.Sprintf("specify the pmm client binary installation package directory(default: %s)", config.DefaultPMMClientInstallationPackageDir))
+	rootCmd.PersistentFlags().StringVar(&pmmClientInstallationPackageDir, "pmm-client-installation-package-dir", constant.DefaultRandomString, fmt.Sprintf("specify the pmm client binary installation package dir(default: %s)", config.DefaultPMMClientInstallationPackageDir))
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
@@ -196,6 +223,12 @@ func initConfig() error {
 	err = OverrideConfigByCLI()
 	if err != nil {
 		return message.NewMessage(message.ErrOverrideCommandLineArgs, err)
+	}
+
+	// init derived config
+	err = config.InitDerivedConfig()
+	if err != nil {
+		return message.NewMessage(message.ErrInitDerivedConfig, err)
 	}
 
 	// init log
@@ -260,7 +293,7 @@ func ReadConfigFile() (err error) {
 	return nil
 }
 
-// UsageTemplateWithoutDefault returns a usage template which does not contain default part
+// UsageTemplateWithoutDefault returns a usage tmpl which does not contain default part
 func UsageTemplateWithoutDefault() string {
 	return `Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}

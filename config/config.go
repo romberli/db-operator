@@ -18,6 +18,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/romberli/go-util/middleware/mysql"
 	"github.com/romberli/log"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,8 @@ func SetDefaultConfig(baseDir string) {
 	SetDefaultLog(baseDir)
 	// server
 	SetDefaultServer(baseDir)
+	// database
+	SetDefaultDB()
 	// mysql
 	SetDefaultMySQL()
 	// pmm
@@ -76,10 +79,27 @@ func SetDefaultServer(baseDir string) {
 	viper.SetDefault(ServerRouterHTTPErrorCodeKey, DefaultServerRouterHTTPErrorCode)
 }
 
+// SetDefaultDB sets the default value of db
+func SetDefaultDB() {
+	viper.SetDefault(DBDBOMySQLAddrKey, constant.DefaultMySQLAddr)
+	viper.SetDefault(DBDBOMySQLNameKey, DefaultDBName)
+	viper.SetDefault(DBDBOMySQLUserKey, DefaultDBUser)
+	viper.SetDefault(DBDBOMySQLPassKey, DefaultDBPass)
+	viper.SetDefault(DBPoolMaxConnectionsKey, mysql.DefaultMaxConnections)
+	viper.SetDefault(DBPoolInitConnectionsKey, mysql.DefaultInitConnections)
+	viper.SetDefault(DBPoolMaxIdleConnectionsKey, mysql.DefaultMaxIdleConnections)
+	viper.SetDefault(DBPoolMaxIdleTimeKey, mysql.DefaultMaxIdleTime)
+	viper.SetDefault(DBPoolMaxWaitTimeKey, mysql.DefaultMaxWaitTime)
+	viper.SetDefault(DBPoolMaxRetryCountKey, mysql.DefaultMaxRetryCount)
+	viper.SetDefault(DBPoolKeepAliveIntervalKey, mysql.DefaultKeepAliveInterval)
+}
+
 // SetDefaultMySQL sets the default value of mysql
 func SetDefaultMySQL() {
 	viper.SetDefault(MySQLVersionKey, DefaultMySQLVersion)
+	viper.SetDefault(MySQLVersionIntKey, DefaultMySQLVersionInt)
 	viper.SetDefault(MySQLInstallationPackageDirKey, DefaultMySQLInstallationPackageDir)
+	viper.SetDefault(MySQLInstallationTemporaryDirKey, DefaultMySQLInstallationTemporaryDir)
 	viper.SetDefault(MySQLParameterMaxConnectionsKey, DefaultMySQLParameterMaxConnections)
 	viper.SetDefault(MySQLParameterInnodbBufferPoolSizeKey, DefaultMySQLParameterInnodbBufferPoolSize)
 	viper.SetDefault(MySQLParameterInnodbIOCapacityKey, DefaultMySQLParameterInnodbIOCapacity)

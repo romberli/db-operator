@@ -1,7 +1,7 @@
 # description: configuration file path, if it's specified as relative path,
 # then directory of binary file will be the base directory of configuration file,
 # it is recommended to specify absolute path.
-# command-line-argument: --config
+# command-line-argument: --mysql
 # type: string
 # default: None
 config: db_operator.yaml
@@ -112,6 +112,74 @@ server:
     # default: 500
     httpErrorCode: 500
 
+# database configuration
+db:
+  # database operator configuration
+  dbo:
+    # mysql configuration
+    mysql:
+      # description: database address, format: host:port
+      # command-line-argument: --db-dbo-mysql-addr
+      # type: string
+      # default: 127.0.0.1:3306
+      addr: "127.0.0.1:3306"
+      # description: database name
+      # command-line-argument: --db-dbo-mysql-name
+      # type: string
+      # default: dbo
+      name: dbo
+      # description: database username
+      # command-line-argument: --db-dbo-mysql-user
+      # type: string
+      # default: root
+      user: root
+      # description: database password
+      # command-line-argument: --db-dbo-mysql-pass
+      # type: string
+      # default: root
+      pass: root
+  # connection pool configuration
+  pool:
+    # description: connection pool could create up to this value of connections
+    # command-line-argument: --db-pool-max-connections
+    # type: int
+    # default: 20
+    maxConnections: 20
+    # description: connection pool will create {init-connections} connections at the beginning,
+    # connection pool could grow up necessarily, up to db-max-connection
+    # command-line-argument: --db-pool-init-connections
+    # type: int
+    # default: 5
+    initConnections: 5
+    # description: connections more than this value will be released soon to save database resource
+    # command-line-argument: --db-pool-max-idle-connections
+    # type: int
+    # default: 20
+    maxIdleConnections: 10
+    # description: connection pool will release connections more than {max-idle-connections} every this value of seconds
+    # command-line-argument: --db-pool-max-idle-time
+    # unit: second
+    # type: int
+    # default: 1800
+    maxIdleTime: 1800
+    # description: getting a connection from the pool will wait for {max-wait-time} seconds at most, -1 means wait forever
+    # command-line-argument: --db-pool-max-wait-time
+    # unit: second
+    # type: int
+    # default: 1
+    maxWaitTime: 1
+    # description: getting a connection from the pool will retry {max-retry-count} times at most, -1 means retry forever
+    # command-line-argument: --db-pool-max-retry-count
+    # type: int
+    # default: -1
+    maxRetryCount: -1
+    # description: connection pool keeps alive of connections in the pool every this value of seconds to avoid database connection timeout
+    # command-line-argument: --db-pool-keep-alive-interval
+    # unit: second
+    # type: int
+    # default: 300
+    keepAliveInterval: 300
+
 # mysql configuration
 mysql:
   # description: specify the default mysql version
@@ -119,11 +187,21 @@ mysql:
   # type: string
   # default: 8.0.32
   version: 8.0.32
+  # description: specify the default mysql version int
+  # command-line-argument: --mysql-version-int
+  # type: string
+  # default: 8032
+  versionInt: 8032
   # description: specify the mysql binary installation package directory
   # command-line-argument: --mysql-installation-package-dir
   # type: string
   # default: /data/software/mysql
   installationPackageDir: /data/software/mysql
+  # description: specify the mysql binary installation temporary directory
+  # command-line-argument: --mysql-installation-temporary-dir
+  # type: string
+  # default: /data/software/mysql/tmp
+  installationTemporaryDir: /data/software/mysql/tmp
   # parameter configuration
   parameter:
     # description: specify the default max connections

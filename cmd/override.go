@@ -32,6 +32,8 @@ func OverrideConfigByCLI() error {
 	if err != nil {
 		merr = multierror.Append(merr, err)
 	}
+	// override database
+	overrideDatabaseByCLI()
 	// override mysql
 	overrideMySQLByCLI()
 	// override pmm
@@ -140,6 +142,43 @@ func overrideServerByCLI() error {
 	return nil
 }
 
+// overrideDatabaseByCLI overrides the db section by command line interface
+func overrideDatabaseByCLI() {
+	if dbDBOMySQLAddr != constant.DefaultRandomString {
+		viper.Set(config.DBDBOMySQLAddrKey, dbDBOMySQLAddr)
+	}
+	if dbDBOMySQLName != constant.DefaultRandomString {
+		viper.Set(config.DBDBOMySQLNameKey, dbDBOMySQLName)
+	}
+	if dbDBOMySQLUser != constant.DefaultRandomString {
+		viper.Set(config.DBDBOMySQLUserKey, dbDBOMySQLUser)
+	}
+	if dbDBOMySQLPass != constant.DefaultRandomString {
+		viper.Set(config.DBDBOMySQLPassKey, dbDBOMySQLPass)
+	}
+	if dbPoolMaxConnections != constant.DefaultRandomInt {
+		viper.Set(config.DBPoolMaxConnectionsKey, dbPoolMaxConnections)
+	}
+	if dbPoolInitConnections != constant.DefaultRandomInt {
+		viper.Set(config.DBPoolInitConnectionsKey, dbPoolInitConnections)
+	}
+	if dbPoolMaxIdleConnections != constant.DefaultRandomInt {
+		viper.Set(config.DBPoolMaxIdleConnectionsKey, dbPoolMaxIdleConnections)
+	}
+	if dbPoolMaxIdleTime != constant.DefaultRandomInt {
+		viper.Set(config.DBPoolMaxIdleTimeKey, dbPoolMaxIdleTime)
+	}
+	if dbPoolMaxWaitTime != constant.DefaultRandomInt {
+		viper.Set(config.DBPoolMaxWaitTimeKey, dbPoolMaxWaitTime)
+	}
+	if dbPoolMaxRetryCount != constant.DefaultRandomInt {
+		viper.Set(config.DBPoolMaxRetryCountKey, dbPoolMaxRetryCount)
+	}
+	if dbPoolKeepAliveInterval != constant.DefaultRandomInt {
+		viper.Set(config.DBPoolKeepAliveIntervalKey, dbPoolKeepAliveInterval)
+	}
+}
+
 // overrideMySQLByCLI overrides the mysql section by command line interface
 func overrideMySQLByCLI() {
 	if mysqlVersion != constant.DefaultRandomString {
@@ -147,6 +186,9 @@ func overrideMySQLByCLI() {
 	}
 	if mysqlInstallationPackageDir != constant.DefaultRandomString {
 		viper.Set(config.MySQLInstallationPackageDirKey, mysqlInstallationPackageDir)
+	}
+	if mysqlInstallationTemporaryDir != constant.DefaultRandomString {
+		viper.Set(config.MySQLInstallationTemporaryDirKey, mysqlInstallationTemporaryDir)
 	}
 	if mysqlParameterMaxConnections != constant.DefaultRandomInt {
 		viper.Set(config.MySQLParameterMaxConnectionsKey, mysqlParameterMaxConnections)

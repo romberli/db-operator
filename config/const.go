@@ -21,7 +21,7 @@ import (
 	"net/http"
 )
 
-// global varariable
+// global variable
 const (
 	DefaultCommandName = "db-operator"
 	DefaultBaseDir     = constant.CurrentDir
@@ -51,9 +51,29 @@ const (
 	DefaultServerRouterAlternativeBasePath = constant.EmptyString
 	DefaultServerRouterAlternativeBodyPath = constant.EmptyString
 	DefaultServerRouterHTTPErrorCode       = http.StatusInternalServerError
+	// db
+	DefaultDBName               = "das"
+	DefaultDBUser               = "root"
+	DefaultDBPass               = "root"
+	MinDBPoolMaxConnections     = 1
+	MaxDBPoolMaxConnections     = constant.MaxInt
+	MinDBPoolInitConnections    = 1
+	MaxDBPoolInitConnections    = constant.MaxInt
+	MinDBPoolMaxIdleConnections = 1
+	MaxDBPoolMaxIdleConnections = constant.MaxInt
+	MinDBPoolMaxIdleTime        = 1
+	MaxDBPoolMaxIdleTime        = constant.MaxInt
+	MinDBPoolMaxWaitTime        = -1
+	MaxDBPoolMaxWaitTime        = constant.MaxInt
+	MinDBPoolMaxRetryCount      = -1
+	MaxDBPoolMaxRetryCount      = constant.MaxInt
+	MinDBPoolKeepAliveInterval  = 1
+	MaxDBPoolKeepAliveInterval  = constant.MaxInt
 	// mysql
 	DefaultMySQLVersion                       = "8.0.32"
+	DefaultMySQLVersionInt                    = 8032
 	DefaultMySQLInstallationPackageDir        = "/data/software/mysql"
+	DefaultMySQLInstallationTemporaryDir      = "/data/software/mysql/tmp"
 	MinMySQLParameterMaxConnections           = 1
 	MaxMySQLParameterMaxConnections           = 10000
 	DefaultMySQLParameterMaxConnections       = 2000
@@ -84,7 +104,7 @@ const (
 	DefaultPMMClientInstallationPackageDir = "/data/software/mysql"
 )
 
-// configuration varariable
+// configuration variable
 const (
 	// config
 	ConfKey = "config"
@@ -107,9 +127,23 @@ const (
 	ServerRouterAlternativeBasePathKey = "server.router.alternativeBasePath"
 	ServerRouterAlternativeBodyPathKey = "server.router.alternativeBodyPath"
 	ServerRouterHTTPErrorCodeKey       = "server.router.httpErrorCode"
+	// database
+	DBDBOMySQLAddrKey           = "db.dbo.mysql.addr"
+	DBDBOMySQLNameKey           = "db.dbo.mysql.name"
+	DBDBOMySQLUserKey           = "db.dbo.mysql.user"
+	DBDBOMySQLPassKey           = "db.dbo.mysql.pass"
+	DBPoolMaxConnectionsKey     = "db.pool.maxConnections"
+	DBPoolInitConnectionsKey    = "db.pool.initConnections"
+	DBPoolMaxIdleConnectionsKey = "db.pool.maxIdleConnections"
+	DBPoolMaxIdleTimeKey        = "db.pool.maxIdleTime"
+	DBPoolMaxWaitTimeKey        = "db.pool.maxWaitTime"
+	DBPoolMaxRetryCountKey      = "db.pool.maxRetryCount"
+	DBPoolKeepAliveIntervalKey  = "db.pool.keepAliveInterval"
 	// mysql
 	MySQLVersionKey                       = "mysql.version"
+	MySQLVersionIntKey                    = "mysql.versionInt"
 	MySQLInstallationPackageDirKey        = "mysql.installationPackageDir"
+	MySQLInstallationTemporaryDirKey      = "mysql.installationTemporaryDir"
 	MySQLParameterMaxConnectionsKey       = "mysql.parameter.maxConnections"
 	MySQLParameterInnodbBufferPoolSizeKey = "mysql.parameter.innodbBufferPoolSize"
 	MySQLParameterInnodbIOCapacityKey     = "mysql.parameter.innodbIOCapacity"

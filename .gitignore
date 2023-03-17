@@ -9,13 +9,13 @@
 *.test
 db-operator
 
-# config
+# common
 .idea/
 */.idea/
 .DS_Store
 test/*.json
 db_operator.yaml
-config/db_operator.yaml
+config/dbo.yaml
 
 # output
 *.out

@@ -7,21 +7,21 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
-	"github.com/spf13/cast"
-	"github.com/spf13/viper"
-
 	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-multierror"
 	"github.com/romberli/go-util/common"
 	"github.com/romberli/go-util/constant"
+	"github.com/spf13/cast"
+	"github.com/spf13/viper"
 
 	msgMySQL "github.com/romberli/db-operator/pkg/message/mysql"
 	msgPMM "github.com/romberli/db-operator/pkg/message/pmm"
 )
 
 const (
-	minMySQLVersion     = "5.7.0"
-	minPMMClientVersion = "2.0.0"
+	minMySQLVersion           = "5.7.35"
+	minPMMClientVersion       = "2.0.0"
+	defaultMySQLVersionLength = 3
 )
 
 // ValidateConfig validates if the configuration is valid
@@ -45,7 +45,11 @@ func ValidateConfig() (err error) {
 	if err != nil {
 		merr = multierror.Append(merr, err)
 	}
-
+	// validate database section
+	err = ValidateDatabase()
+	if err != nil {
+		merr = multierror.Append(merr, err)
+	}
 	// validate mysql section
 	err = ValidateMySQL()
 	if err != nil {
@@ -250,6 +254,94 @@ func ValidateServer() error {
 	return merr.ErrorOrNil()
 }
 
+// ValidateDatabase validates if database section is valid
+func ValidateDatabase() error {
+	merr := &multierror.Error{}
+
+	// validate db.das.mysql.addr
+	dbDASAddr, err := cast.ToStringE(viper.Get(DBDBOMySQLAddrKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	}
+	dasAddr := strings.Split(dbDASAddr, constant.ColonString)
+	if len(dasAddr) != 2 {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBAddr, dbDASAddr))
+	} else {
+		if !govalidator.IsIPv4(dasAddr[0]) {
+			merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBAddr, dbDASAddr))
+		}
+		if !govalidator.IsPort(dasAddr[1]) {
+			merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBAddr, dbDASAddr))
+		}
+	}
+	// validate db.das.mysql.name
+	_, err = cast.ToStringE(viper.Get(DBDBOMySQLNameKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	}
+	// validate db.das.mysql.user
+	_, err = cast.ToStringE(viper.Get(DBDBOMySQLUserKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	}
+	// validate db.das.mysql.pass
+	_, err = cast.ToStringE(viper.Get(DBDBOMySQLPassKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	}
+	// validate db.pool.maxConnections
+	maxConnections, err := cast.ToIntE(viper.Get(DBPoolMaxConnectionsKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else if maxConnections < MinDBPoolMaxConnections || maxConnections > MaxDBPoolMaxConnections {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBPoolMaxConnections, MinDBPoolMaxConnections, MaxDBPoolMaxConnections, maxConnections))
+	}
+	// validate db.pool.initConnections
+	initConnections, err := cast.ToIntE(viper.Get(DBPoolInitConnectionsKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else if initConnections < MinDBPoolInitConnections || initConnections > MaxDBPoolInitConnections {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBPoolInitConnections, MinDBPoolInitConnections, MaxDBPoolInitConnections, initConnections))
+	}
+	// validate db.pool.maxIdleConnections
+	maxIdleConnections, err := cast.ToIntE(viper.Get(DBPoolMaxIdleConnectionsKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else if maxIdleConnections < MinDBPoolMaxIdleConnections || maxIdleConnections > MaxDBPoolMaxIdleConnections {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBPoolMaxIdleConnections, MinDBPoolMaxIdleConnections, MaxDBPoolMaxIdleConnections, maxIdleConnections))
+	}
+	// validate db.pool.maxIdleTime
+	maxIdleTime, err := cast.ToIntE(viper.Get(DBPoolMaxIdleTimeKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else if maxIdleTime < MinDBPoolMaxIdleTime || maxIdleTime > MaxDBPoolMaxIdleTime {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBPoolMaxIdleTime, MinDBPoolMaxIdleTime, MaxDBPoolMaxIdleTime, maxIdleTime))
+	}
+	// validate db.pool.maxWaitTime
+	maxWaitTime, err := cast.ToIntE(viper.Get(DBPoolMaxWaitTimeKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else if maxWaitTime < MinDBPoolMaxWaitTime || maxWaitTime > MaxDBPoolMaxWaitTime {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBPoolMaxWaitTime, MinDBPoolMaxWaitTime, MaxDBPoolMaxWaitTime, maxWaitTime))
+	}
+	// validate db.pool.maxRetryCount
+	maxRetryCount, err := cast.ToIntE(viper.Get(DBPoolMaxRetryCountKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else if maxRetryCount < MinDBPoolMaxRetryCount || maxRetryCount > MaxDBPoolMaxRetryCount {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBPoolMaxRetryCount, MinDBPoolMaxRetryCount, MaxDBPoolMaxRetryCount, maxRetryCount))
+	}
+	// validate db.pool.keepAliveInterval
+	keepAliveInterval, err := cast.ToIntE(viper.Get(DBPoolKeepAliveIntervalKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else if keepAliveInterval < MinDBPoolKeepAliveInterval || keepAliveInterval > MaxDBPoolKeepAliveInterval {
+		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidDBPoolKeepAliveInterval, MinDBPoolKeepAliveInterval, MaxDBPoolKeepAliveInterval, keepAliveInterval))
+	}
+
+	return errors.Trace(merr.ErrorOrNil())
+}
+
 // ValidateMySQL validates if MySQL section is valid
 func ValidateMySQL() error {
 	merr := &multierror.Error{}
@@ -259,16 +351,22 @@ func ValidateMySQL() error {
 	if err != nil {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
-		v, err := version.NewVersion(mysqlVersion)
-		if err != nil {
-			merr = multierror.Append(merr, errors.Trace(err))
+		versionList := strings.Split(mysqlVersion, constant.DotString)
+		if len(versionList) != defaultMySQLVersionLength {
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLVersion, minMySQLVersion, mysqlVersion))
 		} else {
-			minVersion, err := version.NewVersion(minMySQLVersion)
+			// check if version is larger than min mysql version
+			v, err := version.NewVersion(mysqlVersion)
 			if err != nil {
 				merr = multierror.Append(merr, errors.Trace(err))
 			} else {
-				if v.LessThan(minVersion) {
-					merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLVersion, minMySQLVersion, mysqlVersion))
+				minVersion, err := version.NewVersion(minMySQLVersion)
+				if err != nil {
+					merr = multierror.Append(merr, errors.Trace(err))
+				} else {
+					if v.LessThan(minVersion) {
+						merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLVersion, minMySQLVersion, mysqlVersion))
+					}
 				}
 			}
 		}
@@ -282,6 +380,17 @@ func ValidateMySQL() error {
 		ok, _ := govalidator.IsFilePath(mysqlInstallationPackageDir)
 		if !ok {
 			merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidFilePath, mysqlInstallationPackageDir))
+		}
+	}
+
+	// validate mysql.installationTemporaryDir
+	mysqlInstallationTemporaryDir, err := cast.ToStringE(viper.Get(MySQLInstallationTemporaryDirKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else {
+		ok, _ := govalidator.IsFilePath(mysqlInstallationTemporaryDir)
+		if !ok {
+			merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidFilePath, mysqlInstallationTemporaryDir))
 		}
 	}
 

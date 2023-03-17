@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/romberli/db-operator/global"
 	"os"
 	"os/exec"
 	"time"
@@ -114,7 +115,12 @@ var startCmd = &cobra.Command{
 				log.Errorf(constant.LogWithStackString, message.NewMessage(message.ErrSavePidToFile, err))
 				os.Exit(constant.DefaultAbnormalExitCode)
 			}
-
+			// init connection pool
+			err = global.InitDBOMySQLPool()
+			if err != nil {
+				log.Errorf(constant.LogWithStackString, message.NewMessage(message.ErrInitConnectionPool, err))
+				os.Exit(constant.DefaultAbnormalExitCode)
+			}
 			// init router
 			r := router.NewGinRouter()
 			r.Register()

@@ -34,7 +34,7 @@ func initMySQLConfigInfoMessage() {
 
 func initMySQLConfigErrorMessage() {
 	message.Messages[ErrNotValidConfigMySQLVersion] = config.NewErrMessage(message.DefaultMessageHeader, ErrNotValidConfigMySQLVersion,
-		"mysql: version should be larger than %s, %s is not valid")
+		"mysql: version should be formatted as X.Y.Z and larger than %s, %s is not valid")
 	message.Messages[ErrNotValidConfigMySQLParameterMaxConnections] = config.NewErrMessage(message.DefaultMessageHeader, ErrNotValidConfigMySQLParameterMaxConnections,
 		"mysql: default max_connections should be in the range [%d, %d], %d is not valid")
 	message.Messages[ErrNotValidConfigMySQLParameterInnodbBufferPoolSize] = config.NewErrMessage(message.DefaultMessageHeader, ErrNotValidConfigMySQLParameterInnodbBufferPoolSize,

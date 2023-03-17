@@ -41,27 +41,30 @@ const (
 	ErrNotValidDBPoolInitConnections           = 400034
 	ErrNotValidDBPoolMaxIdleConnections        = 400035
 	ErrNotValidDBPoolMaxIdleTime               = 400036
-	ErrNotValidDBPoolKeepAliveInterval         = 400037
-	ErrInitConnectionPool                      = 400038
-	ErrNotValidServerReadTimeout               = 400039
-	ErrNotValidServerWriteTimeout              = 400040
-	ErrNotValidServerAddr                      = 400041
-	ErrNotValidServerRouterAlternativeBasePath = 400042
-	ErrNotValidServerRouterHTTPErrorCode       = 400043
-	ErrFieldNotExists                          = 400044
-	ErrGetRawData                              = 400045
-	ErrUnmarshalRawData                        = 400046
-	ErrGenerateNewMapWithTag                   = 400047
-	ErrMarshalData                             = 400048
-	ErrTypeConversion                          = 400049
-	ErrFieldNotExistsOrWrongType               = 400050
-	ErrNotValidTimeLayout                      = 400051
-	ErrNotValidTimeDuration                    = 400052
-	ErrGetResponseCode                         = 400053
-	ErrSetResponseCode                         = 400054
-	ErrGinRecovery                             = 400055
-	ErrNotValidFilePath                        = 400056
-	ErrOverrideConfigByCLI                     = 400057
+	ErrNotValidDBPoolMaxWaitTime               = 400037
+	ErrNotValidDBPoolMaxRetryCount             = 400038
+	ErrNotValidDBPoolKeepAliveInterval         = 400039
+	ErrInitConnectionPool                      = 400040
+	ErrNotValidServerReadTimeout               = 400041
+	ErrNotValidServerWriteTimeout              = 400042
+	ErrNotValidServerAddr                      = 400043
+	ErrNotValidServerRouterAlternativeBasePath = 400044
+	ErrNotValidServerRouterHTTPErrorCode       = 400045
+	ErrFieldNotExists                          = 400046
+	ErrGetRawData                              = 400047
+	ErrUnmarshalRawData                        = 400048
+	ErrGenerateNewMapWithTag                   = 400049
+	ErrMarshalData                             = 400050
+	ErrTypeConversion                          = 400051
+	ErrFieldNotExistsOrWrongType               = 400052
+	ErrNotValidTimeLayout                      = 400053
+	ErrNotValidTimeDuration                    = 400054
+	ErrGetResponseCode                         = 400055
+	ErrSetResponseCode                         = 400056
+	ErrGinRecovery                             = 400057
+	ErrNotValidFilePath                        = 400058
+	ErrOverrideConfigByCLI                     = 400059
+	ErrInitDerivedConfig                       = 400060
 )
 
 func initErrorMessage() {
@@ -118,4 +121,6 @@ func initErrorMessage() {
 	Messages[ErrGinRecovery] = config.NewErrMessage(DefaultMessageHeader, ErrGinRecovery, "gin Recovery: panic recovered")
 	Messages[ErrNotValidFilePath] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidFilePath, "file path must be either unix or windows path, %s is not valid")
 	Messages[ErrOverrideConfigByCLI] = config.NewErrMessage(DefaultMessageHeader, ErrOverrideConfigByCLI, "override config by command line interface failed")
+	Messages[ErrInitDerivedConfig] = config.NewErrMessage(DefaultMessageHeader, ErrInitDerivedConfig, "init derived config failed")
+
 }
