@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/go-version v1.6.0
 	github.com/pingcap/errors v0.11.5-0.20211224045212-9687c2b0f87c
 	github.com/romberli/go-multierror v1.1.2
-	github.com/romberli/go-util v0.3.17-0.20230313105612-20eebf7bd85e
+	github.com/romberli/go-util v0.3.17-0.20230319110252-903ce055a55b
 	github.com/romberli/log v1.0.25
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
@@ -90,4 +90,5 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	k8s.io/apimachinery v0.26.3 // indirect
 )

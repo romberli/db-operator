@@ -15,6 +15,7 @@ import (
 	"github.com/romberli/db-operator/config"
 	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"github.com/romberli/db-operator/module/implement/mysql/parameter"
+	"github.com/romberli/db-operator/pkg/util/ssh"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/linux"
 	"github.com/romberli/log"
@@ -22,6 +23,8 @@ import (
 )
 
 const (
+	defaultUseSudo = true
+
 	addrTemplate                         = "%s:%d"
 	defaultConfigFileName                = "/etc/my.cnf"
 	defaultConfigFileBackupNameTemplate  = "/etc/my.cnf.%s"
@@ -48,6 +51,7 @@ const (
 
 type Engine struct {
 	dboRepo      *DBORepo
+	sshConn      *ssh.Conn
 	mysqlVersion *version.Version
 	Mode         mode.Mode              `json:"mode"`
 	Addrs        []string               `json:"addrs"`
@@ -56,14 +60,15 @@ type Engine struct {
 }
 
 // NewEngine returns a new *Engine
-func NewEngine(dboRepo *DBORepo, m mode.Mode, addrs []string, mysqlServer *parameter.MySQLServer, pmmClient *parameter.PMMClient) *Engine {
-	return newEngine(dboRepo, m, addrs, mysqlServer, pmmClient)
+func NewEngine(dboRepo *DBORepo, mysqlVersion *version.Version, m mode.Mode, addrs []string, mysqlServer *parameter.MySQLServer, pmmClient *parameter.PMMClient) *Engine {
+	return newEngine(dboRepo, mysqlVersion, m, addrs, mysqlServer, pmmClient)
 }
 
 // NewEngineWithDefault returns a new *Engine with default values
-func NewEngineWithDefault(m mode.Mode, addrs []string, mysqlServer *parameter.MySQLServer, pmmClient *parameter.PMMClient) *Engine {
-	return NewEngine(
+func NewEngineWithDefault(mysqlVersion *version.Version, m mode.Mode, addrs []string, mysqlServer *parameter.MySQLServer, pmmClient *parameter.PMMClient) *Engine {
+	return newEngine(
 		NewDBORepoWithDefault(),
+		mysqlVersion,
 		m,
 		addrs,
 		mysqlServer,
@@ -72,18 +77,23 @@ func NewEngineWithDefault(m mode.Mode, addrs []string, mysqlServer *parameter.My
 }
 
 // newEngine returns a new *Engine
-func newEngine(dboRepo *DBORepo, m mode.Mode, addrs []string, mysqlServer *parameter.MySQLServer, pmmClient *parameter.PMMClient) *Engine {
+func newEngine(dboRepo *DBORepo, mysqlVersion *version.Version, m mode.Mode, addrs []string, mysqlServer *parameter.MySQLServer, pmmClient *parameter.PMMClient) *Engine {
 	return &Engine{
-		dboRepo:     dboRepo,
-		Mode:        m,
-		Addrs:       addrs,
-		MySQLServer: mysqlServer,
-		PMMClient:   pmmClient,
+		dboRepo:      dboRepo,
+		mysqlVersion: mysqlVersion,
+		Mode:         m,
+		Addrs:        addrs,
+		MySQLServer:  mysqlServer,
+		PMMClient:    pmmClient,
 	}
 }
 
 // Install installs mysql to the hosts
 func (e *Engine) Install() error {
+	err := linux.SortAddrs(e.Addrs)
+	if err != nil {
+		return err
+	}
 
 	var (
 		sourceHostIP  string
@@ -91,18 +101,29 @@ func (e *Engine) Install() error {
 	)
 
 	for i, addr := range e.Addrs {
-		var isSource bool
+		var (
+			isSource   bool
+			hostIP     string
+			portNumStr string
+			portNum    int
+		)
 
-		hostIP, portNumStr, err := net.SplitHostPort(addr)
+		hostIP, portNumStr, err = net.SplitHostPort(addr)
 		if err != nil {
 			return errors.Trace(err)
 		}
 		if hostIP == constant.EmptyString || portNumStr == constant.EmptyString {
 			return errors.Errorf("addr must be formatted as host:port, %s is invalid", addr)
 		}
-		portNum, err := strconv.Atoi(portNumStr)
+		portNum, err = strconv.Atoi(portNumStr)
 		if err != nil {
 			return errors.Trace(err)
+		}
+
+		// init ssh conn
+		err = e.InitSSHConn(hostIP)
+		if err != nil {
+			return err
 		}
 
 		// set MySQL Sever Parameter
@@ -116,37 +137,41 @@ func (e *Engine) Install() error {
 		}
 
 		// init os
-		err = e.InitOS(hostIP)
+		err = e.InitOS()
 		if err != nil {
 			return err
 		}
 		// init mysql instance
-		err = e.InitMySQLInstance()
+		err = e.InitMySQLInstance(isSource)
 		if err != nil {
 			return err
-		}
-
-		if !isSource {
-			// configure mysql replica
-			err = e.ConfigureMySQLCluster(addr, sourceHostIP, sourcePortNum)
-			if err != nil {
-				return err
-			}
 		}
 		// init pmm client
 		err = e.InitPMMClient()
 		if err != nil {
 			return err
 		}
+
+		if !isSource && e.Mode == mode.AsyncReplication || e.Mode == mode.SemiSyncReplication {
+			// configure mysql replica
+			err = e.ConfigureReplication(addr, sourceHostIP, sourcePortNum)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if e.Mode == mode.GroupReplication {
+		// configure mysql group replication
+		return e.ConfigureGroupReplication()
 	}
 
 	return nil
 }
 
 // InitOS initializes the os
-func (e *Engine) InitOS(hostIP string) error {
-	sshConn := linux.NewSSHConn(hostIP)
-	osExecutor := NewOSExecutor(e.mysqlVersion, e.MySQLServer)
+func (e *Engine) InitOS() error {
+	osExecutor := NewOSExecutor(e.mysqlVersion, e.sshConn, e.MySQLServer)
 
 	return osExecutor.Init()
 }
@@ -333,26 +358,29 @@ func (e *Engine) checkInstanceWithMySQLDMulti() (bool, error) {
 	return output == fmt.Sprintf(mysqldMultiInstanceIsRunningTemplate, e.MySQLServer.PortNum), nil
 }
 
-// ConfigureMySQLCluster configures the mysql cluster
-func (e *Engine) ConfigureMySQLCluster(addr, sourceHostIP string, sourcePortNum int) error {
-	switch e.Mode {
-	case mode.Standalone:
-		return nil
-	case mode.AsyncReplication, mode.SemiSyncReplication:
-
-		return e.configureReplication(addr, sourceHostIP, sourcePortNum)
-	case mode.GroupReplication:
-		return e.configureGroupReplication()
-	default:
-		return errors.Errorf("unsupported mode %d", e.Mode)
-	}
-}
-
 // InitPMMClient initializes the pmm client
 func (e *Engine) InitPMMClient() error {
 	pmmExecutor := NewPMMExecutor(e.sshConn, e.MySQLServer.HostIP, e.MySQLServer.PortNum, e.PMMClient)
 
 	return pmmExecutor.Init()
+}
+
+// InitSSHConn initializes the ssh connection
+func (e *Engine) InitSSHConn(hostIP string) error {
+	sshConn, err := linux.NewSSHConn(
+		hostIP,
+		constant.DefaultSSHPort,
+		viper.GetString(config.MySQLUserOSUserKey),
+		viper.GetString(config.MySQLUserOSPassKey),
+		defaultUseSudo,
+	)
+	if err != nil {
+		return err
+	}
+
+	e.sshConn = ssh.NewConn(sshConn)
+
+	return nil
 }
 
 // prepareInitConfigFile prepares mysql config file for initializing mysql instance
@@ -394,7 +422,7 @@ func (e *Engine) transferConfigContent(configContent string, fileNameSource, fil
 		return err
 	}
 
-	return e.sshConn.Chown(defaultConfigFileName, defaultMySQLUser, defaultMySQLUser)
+	return e.sshConn.Chown(filePathDest, defaultMySQLUser, defaultMySQLUser)
 }
 
 // getTitle gets the title of the instance
@@ -433,8 +461,8 @@ func (e *Engine) getSourceNode() (string, int, error) {
 	return hostIP, portNum, nil
 }
 
-// configureReplication configures the replication
-func (e *Engine) configureReplication(addr, sourceHostIP string, sourcePortNum int) error {
+// ConfigureReplication configures the replication
+func (e *Engine) ConfigureReplication(addr, sourceHostIP string, sourcePortNum int) error {
 	if addr == fmt.Sprintf(addrTemplate, sourceHostIP, sourcePortNum) {
 		// this is the source node, do nothing
 		return nil
@@ -447,7 +475,7 @@ func (e *Engine) configureReplication(addr, sourceHostIP string, sourcePortNum i
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Errorf("Engine.configureReplication(): close mysql connection failed. error:\n%+v", err)
+			log.Errorf("Engine.ConfigureReplication(): close mysql connection failed. error:\n%+v", err)
 		}
 	}()
 
@@ -477,7 +505,7 @@ func (e *Engine) configureReplication(addr, sourceHostIP string, sourcePortNum i
 	return nil
 }
 
-// configureGroupReplication configures the group replication
-func (e *Engine) configureGroupReplication() error {
+// ConfigureGroupReplication configures the group replication
+func (e *Engine) ConfigureGroupReplication() error {
 	return nil
 }

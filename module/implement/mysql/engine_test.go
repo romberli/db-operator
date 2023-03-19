@@ -66,6 +66,8 @@ const (
 	testPMMClientVersion   = "2.24.0"
 	testPMMServiceName     = "192-168-137-11-3306"
 	testReplicationSetName = constant.EmptyString
+
+	testDateCommand = "date +%Y%m%d-%H%M%S"
 )
 
 var (
@@ -92,6 +94,8 @@ func init() {
 
 func testInitViper() {
 	viper.Set(config.MySQLInstallationPackageDirKey, testMySQLInstallationPackageDir)
+	viper.Set(config.MySQLUserOSUserKey, testOSUser)
+	viper.Set(config.MySQLUserOSPassKey, testOSPass)
 	viper.Set(config.PMMServerAddrKey, testPMMServerAddr)
 	viper.Set(config.PMMClientVersionKey, testPMMClientVersion)
 }
@@ -148,20 +152,36 @@ func testInitSSHConn() *ssh.Conn {
 }
 
 func testInitEngine() *Engine {
-	return NewEngineWithDefault(testSSHConn, testMode, testAddrs, testMySQLServer, testPMMClient)
+	return NewEngineWithDefault(testMySQLVersion, testMode, testAddrs, testMySQLServer, testPMMClient)
 }
 
 func TestEngine_All(t *testing.T) {
 	TestEngine_InitMySQLInstance(t)
-	TestEngine_ConfigureMySQLCluster(t)
+	TestEngine_ConfigureReplication(t)
 	TestEngine_InitPMMClient(t)
+	TestEngine_ConfigurePMMClient(t)
 	TestEngine_Install(t)
+}
+
+func TestEngine_InitSSHConn(t *testing.T) {
+	asst := assert.New(t)
+
+	err := testEngine.InitSSHConn(testHostIP)
+	asst.Nil(err, "test InitSSHConn() failed")
+	asst.NotNil(testEngine.sshConn, "test InitSSHConn() failed")
+	output, err := testEngine.sshConn.ExecuteCommand(testDateCommand)
+	asst.Nil(err, "test InitSSHConn() failed")
+	t.Logf("output: %s", output)
 }
 
 func TestEngine_InitMySQLInstance(t *testing.T) {
 	asst := assert.New(t)
-
-	err := testEngine.InitMySQLInstance(true)
+	// init ssh conn
+	err := testEngine.InitSSHConn(testHostIP)
+	asst.Nil(err, "test InitSSHConn() failed")
+	asst.NotNil(testEngine.sshConn, "test InitSSHConn() failed")
+	// init mysql instance
+	err = testEngine.InitMySQLInstance(true)
 	asst.Nil(err, "test InitMySQLInstance() failed")
 	// create connection
 	conn, err := mysql.NewConn(testAddr, constant.EmptyString, testClientUser, testClientPass)
@@ -175,10 +195,10 @@ func TestEngine_InitMySQLInstance(t *testing.T) {
 	asst.True(ok, "test InitMySQLInstance() failed")
 }
 
-func TestEngine_ConfigureMySQLCluster(t *testing.T) {
+func TestEngine_ConfigureReplication(t *testing.T) {
 	asst := assert.New(t)
 
-	err := testEngine.ConfigureMySQLCluster(testAddr)
+	err := testEngine.ConfigureReplication(testAddr, testHostIP, testPortNum)
 	asst.Nil(err, "test ConfigureMySQLCluster() failed")
 	// create connection
 	conn, err := mysql.NewConn(testAddr, constant.EmptyString, testClientUser, testClientPass)
@@ -194,6 +214,13 @@ func TestEngine_ConfigureMySQLCluster(t *testing.T) {
 
 func TestEngine_InitPMMClient(t *testing.T) {
 
+}
+
+func TestEngine_ConfigurePMMClient(t *testing.T) {
+	asst := assert.New(t)
+
+	err := testEngine.ConfigureGroupReplication()
+	asst.Nil(err, "test ConfigureGroupReplication() failed")
 }
 
 func TestEngine_Install(t *testing.T) {

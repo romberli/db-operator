@@ -22,8 +22,8 @@ const (
 	minX64MySQLVersionStr   = mysql8026VersionStr
 	minAArchMySQLVersionStr = mysql8032VersionStr
 	// mysql 8.0
-	mysqlInstallationPackageNameTemplateV1 = "mysql-%s-linux-glibc2.12-x86_64.tar.xz"
-	mysqlInstallationPackageNameTemplateV2 = "mysql-%s-linux-glibc2.17-aarch64.tar.gz"
+	mysqlServerBinaryPackageNameTemplateV1 = "mysql-%s-linux-glibc2.12-x86_64.tar.xz"
+	mysqlServerBinaryPackageNameTemplateV2 = "mysql-%s-linux-glibc2.17-aarch64.tar.gz"
 	decompressCommandV1                    = "tar xf %s -C %s"
 	decompressCommandV2                    = "tar zxf %s -C %s"
 	tarGZExt                               = ".tar.gz"
@@ -136,7 +136,7 @@ func (ose *OSExecutor) Precheck() error {
 		return errors.Errorf("the minimum mysql version on %s is %s, %s not valid", ose.arch, minAArchMySQLVersion.String(), ose.mysqlVersion.String())
 	}
 	// check if mysql installation package exists
-	installationPackagePath := filepath.Join(viper.GetString(config.MySQLInstallationPackageDirKey), ose.getMySQLInstallationPackageName())
+	installationPackagePath := filepath.Join(viper.GetString(config.MySQLInstallationPackageDirKey), ose.getMySQLServerBinaryPackageName())
 	exists, err := linux.PathExists(installationPackagePath)
 	if err != nil {
 		return err
@@ -277,7 +277,7 @@ func (ose *OSExecutor) InitDir() error {
 // InstallMySQLBinary installs the mysql binary
 func (ose *OSExecutor) InstallMySQLBinary() error {
 	// copy mysql installation package
-	err := ose.copyInstallationPackages()
+	err := ose.copyMySQLServerBinaryPackages()
 	if err != nil {
 		return err
 	}
@@ -289,7 +289,7 @@ func (ose *OSExecutor) InstallMySQLBinary() error {
 	}
 
 	err = ose.sshConn.Move(filepath.Join(
-		constant.DefaultTmpDir, ose.getMySQLInstallationPackageDecompressedDirName()), ose.mysqlServer.BinaryDirBase)
+		constant.DefaultTmpDir, ose.getMySQLServerBinaryPackageDecompressedDirName()), ose.mysqlServer.BinaryDirBase)
 	if err != nil {
 		return err
 	}
@@ -297,9 +297,9 @@ func (ose *OSExecutor) InstallMySQLBinary() error {
 	return nil
 }
 
-// copyInstallationPackages copies the installation packages to the remote host
-func (ose *OSExecutor) copyInstallationPackages() error {
-	fileName := ose.getMySQLInstallationPackageName()
+// copyMySQLServerBinaryPackages copies the mysql server binary packages to the remote host
+func (ose *OSExecutor) copyMySQLServerBinaryPackages() error {
+	fileName := ose.getMySQLServerBinaryPackageName()
 	fileNameSource := ose.getMySQLInstallationPackagePath()
 	fileNameDest := filepath.Join(constant.DefaultTmpDir, fileName)
 	// copy mysql installation package
@@ -311,24 +311,24 @@ func (ose *OSExecutor) copyInstallationPackages() error {
 	return nil
 }
 
-// getMySQLInstallationPackagePath returns the mysql installation package path
+// getMySQLInstallationPackagePath returns the mysql server binary package path
 func (ose *OSExecutor) getMySQLInstallationPackagePath() string {
-	return filepath.Join(viper.GetString(config.MySQLInstallationPackageDirKey), ose.getMySQLInstallationPackageName())
+	return filepath.Join(viper.GetString(config.MySQLInstallationPackageDirKey), ose.getMySQLServerBinaryPackageName())
 }
 
-// getMySQLInstallationPackageName returns the mysql installation package name
-func (ose *OSExecutor) getMySQLInstallationPackageName() string {
-	packageNameTemplate := mysqlInstallationPackageNameTemplateV1
+// getMySQLServerBinaryPackageName returns the mysql installation package name
+func (ose *OSExecutor) getMySQLServerBinaryPackageName() string {
+	packageNameTemplate := mysqlServerBinaryPackageNameTemplateV1
 	if ose.arch == constant.AArch64Arch {
-		packageNameTemplate = mysqlInstallationPackageNameTemplateV2
+		packageNameTemplate = mysqlServerBinaryPackageNameTemplateV2
 	}
 
 	return fmt.Sprintf(packageNameTemplate, ose.mysqlVersion.String())
 }
 
-// getMySQLInstallationPackageDecompressedDirName returns the mysql installation package decompressed directory name
-func (ose *OSExecutor) getMySQLInstallationPackageDecompressedDirName() string {
-	packageName := ose.getMySQLInstallationPackageName()
+// getMySQLServerBinaryPackageDecompressedDirName returns the mysql server binary package decompressed directory name
+func (ose *OSExecutor) getMySQLServerBinaryPackageDecompressedDirName() string {
+	packageName := ose.getMySQLServerBinaryPackageName()
 
 	if strings.HasSuffix(packageName, tarXZExt) {
 		return strings.TrimSuffix(packageName, tarXZExt)
@@ -345,5 +345,5 @@ func (ose *OSExecutor) getDecompressCommand() string {
 		command = decompressCommandV2
 	}
 
-	return fmt.Sprintf(command, filepath.Join(constant.DefaultTmpDir, ose.getMySQLInstallationPackageName()), constant.DefaultTmpDir)
+	return fmt.Sprintf(command, filepath.Join(constant.DefaultTmpDir, ose.getMySQLServerBinaryPackageName()), constant.DefaultTmpDir)
 }

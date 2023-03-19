@@ -288,8 +288,8 @@ github.com/romberli/dynamic-struct v1.2.1/go.mod h1:Jk2Z0Dm0diV7O4Lg1MfIyJ0kvOxf
 github.com/romberli/go-multierror v1.1.2-0.20220118054508-60f25a547317/go.mod h1:zl7X0Cn5uTu9unezPrgXXsrQAq2Nj/6Cne0qJkFiAOs=
 github.com/romberli/go-multierror v1.1.2 h1:N+V1fad4Av+ALUSu2NZUPGq1Czus6k7/qQnrQxZm7IA=
 github.com/romberli/go-multierror v1.1.2/go.mod h1:zl7X0Cn5uTu9unezPrgXXsrQAq2Nj/6Cne0qJkFiAOs=
-github.com/romberli/go-util v0.3.17-0.20230313105612-20eebf7bd85e h1:M+FFCngLaCVXqqUBJT4cW73Qohu8coCZDEKMOsE/ZyM=
-github.com/romberli/go-util v0.3.17-0.20230313105612-20eebf7bd85e/go.mod h1:d1uefp3K35acTv8CEmXc2Qd0C11w5k9GV79g+mY28vo=
+github.com/romberli/go-util v0.3.17-0.20230319110252-903ce055a55b h1:c82li9iNyojQthnF/2h4Wm8SYvjHdV8kH74WAIDvzf8=
+github.com/romberli/go-util v0.3.17-0.20230319110252-903ce055a55b/go.mod h1:SbNsUJOLSkBJ0+yaPbDWkfHPF9dmbj4fvueMW25RQcs=
 github.com/romberli/log v1.0.25 h1:8yEGpqOt1aApA7S18/IBn22aR6Pk+pI3JpH/RT7ux14=
 github.com/romberli/log v1.0.25/go.mod h1:D/TkYeEyKz+DXbGPeSZccQBUF6uhrs8CXDABCDo/bjM=
 github.com/romberli/pflag v1.0.6-alpha h1:eSC9Fc/QxWpxrj1QbMitsULOGLhSUxxgymfz+XRpfI8=
@@ -747,6 +747,8 @@ honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWh
 honnef.co/go/tools v0.0.1-2019.2.3/go.mod h1:a3bituU0lyd329TUQxRnasdCoJDkEUEAqEt0JzvZhAg=
 honnef.co/go/tools v0.0.1-2020.1.3/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
 honnef.co/go/tools v0.0.1-2020.1.4/go.mod h1:X/FiERA/W4tHapMX5mGpAtMSVEeEUOyHaw9vFzvIQ3k=
+k8s.io/apimachinery v0.26.3 h1:dQx6PNETJ7nODU3XPtrwkfuubs6w7sX0M8n61zHIV/k=
+k8s.io/apimachinery v0.26.3/go.mod h1:ats7nN1LExKHvJ9TmwootT00Yz05MuYqPXEXaVeOy5I=
 modernc.org/fileutil v1.0.0/go.mod h1:JHsWpkrk/CnVV1H/eGlFf85BEpfkrp56ro8nojIq9Q8=
 modernc.org/golex v1.0.1/go.mod h1:QCA53QtsT1NdGkaZZkF5ezFwk4IXh4BGNafAARTC254=
 modernc.org/lex v1.0.0/go.mod h1:G6rxMTy3cH2iA0iXL/HRRv4Znu8MK4higxph/lE7ypk=
