@@ -353,7 +353,7 @@ func ValidateMySQL() error {
 	} else {
 		versionList := strings.Split(mysqlVersion, constant.DotString)
 		if len(versionList) != defaultMySQLVersionLength {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLVersion, minMySQLVersion, mysqlVersion))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLVersion, minMySQLVersion, mysqlVersion))
 		} else {
 			// check if version is larger than min mysql version
 			v, err := version.NewVersion(mysqlVersion)
@@ -365,7 +365,7 @@ func ValidateMySQL() error {
 					merr = multierror.Append(merr, errors.Trace(err))
 				} else {
 					if v.LessThan(minVersion) {
-						merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLVersion, minMySQLVersion, mysqlVersion))
+						merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLVersion, minMySQLVersion, mysqlVersion))
 					}
 				}
 			}
@@ -400,7 +400,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if maxConnections < MinMySQLParameterMaxConnections || maxConnections > MaxMySQLParameterMaxConnections {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLParameterMaxConnections, MinMySQLParameterMaxConnections, MaxMySQLParameterMaxConnections, maxConnections))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLParameterMaxConnections, MinMySQLParameterMaxConnections, MaxMySQLParameterMaxConnections, maxConnections))
 		}
 	}
 
@@ -410,7 +410,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if innodbBufferPoolSize < MinMySQLParameterInnodbBufferPoolSize || innodbBufferPoolSize > MaxMySQLParameterInnodbBufferPoolSize {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLParameterInnodbBufferPoolSize, MinMySQLParameterInnodbBufferPoolSize, MaxMySQLParameterInnodbBufferPoolSize, innodbBufferPoolSize))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLParameterInnodbBufferPoolSize, MinMySQLParameterInnodbBufferPoolSize, MaxMySQLParameterInnodbBufferPoolSize, innodbBufferPoolSize))
 		}
 	}
 
@@ -420,7 +420,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if innodbIOCapacity < MinMySQLParameterInnodbIOCapacity || innodbIOCapacity > MaxMySQLParameterInnodbIOCapacity {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLParameterInnodbIOCapacity, MinMySQLParameterInnodbIOCapacity, MaxMySQLParameterInnodbIOCapacity, innodbIOCapacity))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLParameterInnodbIOCapacity, MinMySQLParameterInnodbIOCapacity, MaxMySQLParameterInnodbIOCapacity, innodbIOCapacity))
 		}
 	}
 
@@ -430,7 +430,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if osUser == constant.EmptyString {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLUser, MySQLUserOSUserKey))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLUser, MySQLUserOSUserKey))
 		}
 	}
 
@@ -452,7 +452,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if adminUser == constant.EmptyString {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLUser, MySQLUserAdminUserKey))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLUser, MySQLUserAdminUserKey))
 		}
 	}
 
@@ -468,7 +468,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if mysqldMultiUser == constant.EmptyString {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLUser, MySQLUserMonitorUserKey))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLUser, MySQLUserMonitorUserKey))
 		}
 	}
 
@@ -484,7 +484,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if replicationUser == constant.EmptyString {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLUser, MySQLUserReplicationUserKey))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLUser, MySQLUserReplicationUserKey))
 		}
 	}
 
@@ -500,7 +500,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if monitorUser == constant.EmptyString {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLUser, MySQLUserMonitorUserKey))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLUser, MySQLUserMonitorUserKey))
 		}
 	}
 
@@ -516,7 +516,7 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
 		if dasUser == constant.EmptyString {
-			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrNotValidConfigMySQLUser, MySQLUserDASUserKey))
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLUser, MySQLUserDASUserKey))
 		}
 	}
 

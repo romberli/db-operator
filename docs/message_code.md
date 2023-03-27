@@ -14,4 +14,5 @@ message code is a 6-digit number, use `ABCDEF` to present each digit
 | 00  | message | 0   | general   |
 | 01  | health  | 0   | health    |
 | 02  | mysql   | 0   | config    |
+| 02  | mysql   | 1   | service   |
 | 03  | pmm     | 0   | config    |

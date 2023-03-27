@@ -3,6 +3,7 @@ package mysql
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-version"
@@ -39,7 +40,9 @@ const (
 	defaultMySQLUser  = "mysql"
 	defaultMySQLGroup = "mysql"
 
-	yumInstallCommand       = "/usr/bin/yum Install -y ncurses-c++-libs ncurses-libs"
+	bashProfilePath = "/root/.bash_profile"
+
+	yumInstallCommand       = "/usr/bin/yum install -y ncurses-c++-libs ncurses-libs"
 	libNCursesPath          = "/usr/lib64/libncurses.so.5"
 	libTInfoPath            = "/usr/lib64/libtinfo.so.5"
 	lnLibNCursesCommand     = "/usr/bin/ln -s /usr/lib64/libncurses.so.6.2 /usr/lib64/libncurses.so.5"
@@ -48,6 +51,8 @@ const (
 	checkMySQLUserCommand   = "/usr/bin/id -u mysql"
 	createMySQLGroupCommand = "/usr/sbin/groupadd -g 1001 mysql"
 	createMySQLUserCommand  = "/usr/sbin/useradd -u 1001 -g mysql mysql"
+	checkPathEnvCommand     = "/usr/bin/grep PATH %s | /usr/bin/grep -c %s/bin | /usr/bin/grep -v grep"
+	addPathEnvCommand       = `/usr/bin/echo 'export PATH=\$PATH:%s/bin' >> %s`
 )
 
 var (
@@ -57,23 +62,24 @@ var (
 )
 
 type OSExecutor struct {
-	arch         string
-	osVersion    *version.Version
+	*ssh.Conn
 	mysqlVersion *version.Version
-	sshConn      *ssh.Conn
 	mysqlServer  *parameter.MySQLServer
+
+	arch      string
+	osVersion *version.Version
 }
 
 // NewOSExecutor returns a new *OSExecutor
-func NewOSExecutor(mysqlVersion *version.Version, sshConn *ssh.Conn, mysqlServer *parameter.MySQLServer) *OSExecutor {
-	return newOSExecutor(mysqlVersion, sshConn, mysqlServer)
+func NewOSExecutor(sshConn *ssh.Conn, mysqlVersion *version.Version, mysqlServer *parameter.MySQLServer) *OSExecutor {
+	return newOSExecutor(sshConn, mysqlVersion, mysqlServer)
 }
 
 // newOSExecutor returns a new *OSExecutor
-func newOSExecutor(mysqlVersion *version.Version, sshConn *ssh.Conn, mysqlServer *parameter.MySQLServer) *OSExecutor {
+func newOSExecutor(sshConn *ssh.Conn, mysqlVersion *version.Version, mysqlServer *parameter.MySQLServer) *OSExecutor {
 	return &OSExecutor{
+		Conn:         sshConn,
 		mysqlVersion: mysqlVersion,
-		sshConn:      sshConn,
 		mysqlServer:  mysqlServer,
 	}
 }
@@ -107,6 +113,11 @@ func (ose *OSExecutor) Init() error {
 	if err != nil {
 		return err
 	}
+	// Configure path env
+	err = ose.ConfigurePathEnv()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -115,12 +126,12 @@ func (ose *OSExecutor) Init() error {
 func (ose *OSExecutor) InitExecutor() error {
 	var err error
 	// get os version
-	ose.osVersion, err = ose.sshConn.GetOSVersion()
+	ose.osVersion, err = ose.Conn.GetOSVersion()
 	if err != nil {
 		return err
 	}
 	// get arch
-	ose.arch, err = ose.sshConn.GetArch()
+	ose.arch, err = ose.Conn.GetArch()
 	if err != nil {
 		return err
 	}
@@ -135,6 +146,15 @@ func (ose *OSExecutor) Precheck() error {
 		(ose.arch == constant.X64Arch && ose.mysqlVersion.LessThan(minX64MySQLVersion)) {
 		return errors.Errorf("the minimum mysql version on %s is %s, %s not valid", ose.arch, minAArchMySQLVersion.String(), ose.mysqlVersion.String())
 	}
+	// check if mysql pid exists
+	pidList, err := ose.GetMySQLPIDList()
+	if err != nil {
+		return err
+	}
+	if len(pidList) > constant.ZeroInt {
+		return errors.Errorf("mysql pid exists, installation aborted. pid list: %v", pidList)
+	}
+
 	// check if mysql installation package exists
 	installationPackagePath := filepath.Join(viper.GetString(config.MySQLInstallationPackageDirKey), ose.getMySQLServerBinaryPackageName())
 	exists, err := linux.PathExists(installationPackagePath)
@@ -146,19 +166,19 @@ func (ose *OSExecutor) Precheck() error {
 	}
 	// check if the mysql data directory exists
 	dataDir := filepath.Join(ose.mysqlServer.DataDirBase, dataDirName)
-	output, err := ose.sshConn.ListPath(dataDir)
+	output, err := ose.Conn.ListPath(dataDir)
 	if err == nil && len(output) > constant.ZeroInt {
 		return errors.Errorf("mysql data directory exists and is not empty, installation aborted. data directory: %s", dataDir)
 	}
 	// check if the mysql binlog directory exists
 	binlogDir := filepath.Join(ose.mysqlServer.LogDirBase, binlogDirName)
-	output, err = ose.sshConn.ListPath(binlogDir)
+	output, err = ose.Conn.ListPath(binlogDir)
 	if err == nil && len(output) > constant.ZeroInt {
 		return errors.Errorf("mysql binlog directory exists and is not empty, installation aborted. binlog directory: %s", dataDir)
 	}
 	// check if the mysql relaylog directory exists
 	relaylogDir := filepath.Join(ose.mysqlServer.LogDirBase, relaylogDirName)
-	output, err = ose.sshConn.ListPath(relaylogDir)
+	output, err = ose.Conn.ListPath(relaylogDir)
 	if err == nil && len(output) > constant.ZeroInt {
 		return errors.Errorf("mysql relaylog directory exists and is not empty, installation aborted. relaylog directory: %s", dataDir)
 	}
@@ -166,30 +186,55 @@ func (ose *OSExecutor) Precheck() error {
 	return nil
 }
 
+// GetMySQLPIDList gets the mysql pid list
+func (ose *OSExecutor) GetMySQLPIDList() ([]int, error) {
+	cmd := fmt.Sprintf(getMySQLPIDListCommandTemplate, ose.mysqlServer.PortNum, ose.mysqlServer.DataDirBase)
+	output, err := ose.Conn.ExecuteCommand(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	if output == constant.EmptyString {
+		return nil, nil
+	}
+
+	pidStrList := strings.Split(output, constant.CRLFString)
+	pidList := make([]int, len(pidStrList))
+	for i, pidStr := range pidStrList {
+		pid, err := strconv.Atoi(strings.TrimSpace(pidStr))
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		pidList[i] = pid
+	}
+
+	return pidList, nil
+}
+
 // InstallRPM installs the rpm
 func (ose *OSExecutor) InstallRPM() error {
-	err := ose.sshConn.ExecuteCommandWithoutOutput(yumInstallCommand)
+	err := ose.Conn.ExecuteCommandWithoutOutput(yumInstallCommand)
 	if err != nil {
 		return err
 	}
 
 	if ose.osVersion.GreaterThanOrEqual(os9Version) {
-		pathExists, err := ose.sshConn.PathExists(libNCursesPath)
+		pathExists, err := ose.Conn.PathExists(libNCursesPath)
 		if err != nil {
 			return err
 		}
 		if !pathExists {
-			err = ose.sshConn.ExecuteCommandWithoutOutput(lnLibNCursesCommand)
+			err = ose.Conn.ExecuteCommandWithoutOutput(lnLibNCursesCommand)
 			if err != nil {
 				return err
 			}
 		}
-		pathExists, err = ose.sshConn.PathExists(libTInfoPath)
+		pathExists, err = ose.Conn.PathExists(libTInfoPath)
 		if err != nil {
 			return err
 		}
 		if !pathExists {
-			err = ose.sshConn.ExecuteCommandWithoutOutput(lnLibTInfoCommand)
+			err = ose.Conn.ExecuteCommandWithoutOutput(lnLibTInfoCommand)
 			if err != nil {
 				return err
 			}
@@ -202,17 +247,17 @@ func (ose *OSExecutor) InstallRPM() error {
 // InitUserAndGroup initializes the user and group
 func (ose *OSExecutor) InitUserAndGroup() error {
 	// init mysql group
-	err := ose.sshConn.ExecuteCommandWithoutOutput(checkMySQLGroupCommand)
+	err := ose.Conn.ExecuteCommandWithoutOutput(checkMySQLGroupCommand)
 	if err != nil {
-		err = ose.sshConn.ExecuteCommandWithoutOutput(createMySQLGroupCommand)
+		err = ose.Conn.ExecuteCommandWithoutOutput(createMySQLGroupCommand)
 		if err != nil {
 			return errors.Trace(err)
 		}
 	}
 	// init mysql user
-	err = ose.sshConn.ExecuteCommandWithoutOutput(checkMySQLUserCommand)
+	err = ose.Conn.ExecuteCommandWithoutOutput(checkMySQLUserCommand)
 	if err != nil {
-		err = ose.sshConn.ExecuteCommandWithoutOutput(createMySQLUserCommand)
+		err = ose.Conn.ExecuteCommandWithoutOutput(createMySQLUserCommand)
 		if err != nil {
 			return errors.Trace(err)
 		}
@@ -225,48 +270,48 @@ func (ose *OSExecutor) InitUserAndGroup() error {
 func (ose *OSExecutor) InitDir() error {
 	// create directories
 	binaryDirParent := filepath.Dir(ose.mysqlServer.BinaryDirBase)
-	err := ose.sshConn.MkdirAll(binaryDirParent)
+	err := ose.Conn.MkdirAll(binaryDirParent)
 	if err != nil {
 		return errors.Trace(err)
 	}
-	err = ose.sshConn.MkdirAll(ose.mysqlServer.BackupDir)
+	err = ose.Conn.MkdirAll(ose.mysqlServer.BackupDir)
 	if err != nil {
 		return errors.Trace(err)
 	}
-	err = ose.sshConn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, dataDirName))
+	err = ose.Conn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, dataDirName))
 	if err != nil {
 		return errors.Trace(err)
 	}
-	err = ose.sshConn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, logDirName))
+	err = ose.Conn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, logDirName))
 	if err != nil {
 		return errors.Trace(err)
 	}
-	err = ose.sshConn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, tmpDirName))
+	err = ose.Conn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, tmpDirName))
 	if err != nil {
 		return errors.Trace(err)
 	}
-	err = ose.sshConn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, runDirName))
+	err = ose.Conn.MkdirAll(filepath.Join(ose.mysqlServer.DataDirBase, runDirName))
 	if err != nil {
 		return errors.Trace(err)
 	}
-	err = ose.sshConn.MkdirAll(filepath.Join(ose.mysqlServer.LogDirBase, binlogDirName))
+	err = ose.Conn.MkdirAll(filepath.Join(ose.mysqlServer.LogDirBase, binlogDirName))
 	if err != nil {
 		return errors.Trace(err)
 	}
-	err = ose.sshConn.MkdirAll(filepath.Join(ose.mysqlServer.LogDirBase, relaylogDirName))
+	err = ose.Conn.MkdirAll(filepath.Join(ose.mysqlServer.LogDirBase, relaylogDirName))
 	if err != nil {
 		return errors.Trace(err)
 	}
 	// change owner of directories
-	err = ose.sshConn.Chown(ose.mysqlServer.BackupDir, defaultMySQLUser, defaultMySQLGroup)
+	err = ose.Conn.Chown(ose.mysqlServer.BackupDir, defaultMySQLUser, defaultMySQLGroup)
 	if err != nil {
 		return err
 	}
-	err = ose.sshConn.Chown(ose.mysqlServer.DataDirBase, defaultMySQLUser, defaultMySQLGroup)
+	err = ose.Conn.Chown(ose.mysqlServer.DataDirBase, defaultMySQLUser, defaultMySQLGroup)
 	if err != nil {
 		return err
 	}
-	err = ose.sshConn.Chown(ose.mysqlServer.LogDirBase, defaultMySQLUser, defaultMySQLGroup)
+	err = ose.Conn.Chown(ose.mysqlServer.LogDirBase, defaultMySQLUser, defaultMySQLGroup)
 	if err != nil {
 		return err
 	}
@@ -276,22 +321,61 @@ func (ose *OSExecutor) InitDir() error {
 
 // InstallMySQLBinary installs the mysql binary
 func (ose *OSExecutor) InstallMySQLBinary() error {
+	// check mysql binary directory exists
+	exists, err := ose.Conn.PathExists(ose.mysqlServer.BinaryDirBase)
+	if err != nil {
+		return err
+	}
+	if exists {
+		// mysql binary directory exists, maybe just want to add new instance
+		return nil
+	}
 	// copy mysql installation package
-	err := ose.copyMySQLServerBinaryPackages()
+	err = ose.copyMySQLServerBinaryPackages()
 	if err != nil {
 		return err
 	}
 	// Install mysql binary
 	cmd := ose.getDecompressCommand()
-	err = ose.sshConn.ExecuteCommandWithoutOutput(cmd)
+	err = ose.Conn.ExecuteCommandWithoutOutput(cmd)
 	if err != nil {
 		return err
 	}
 
-	err = ose.sshConn.Move(filepath.Join(
+	err = ose.Conn.Move(filepath.Join(
 		constant.DefaultTmpDir, ose.getMySQLServerBinaryPackageDecompressedDirName()), ose.mysqlServer.BinaryDirBase)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// ConfigurePathEnv configures the path environment variable
+func (ose *OSExecutor) ConfigurePathEnv() error {
+	// check if bash profile exists
+	exists, err := ose.Conn.PathExists(bashProfilePath)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return errors.Errorf("ose.ConfigurePathEnv(): file does not exist. file: %s", bashProfilePath)
+	}
+
+	// check if mysql binary directory exists in PATH
+	cmd := fmt.Sprintf(checkPathEnvCommand, bashProfilePath, ose.mysqlServer.BinaryDirBase)
+	output, err := ose.Conn.ExecuteCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	if output == strconv.Itoa(constant.ZeroInt) {
+		// add mysql binary directory to PATH
+		cmd = fmt.Sprintf(addPathEnvCommand, ose.mysqlServer.BinaryDirBase, bashProfilePath)
+		err = ose.Conn.ExecuteCommandWithoutOutput(cmd)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -303,7 +387,7 @@ func (ose *OSExecutor) copyMySQLServerBinaryPackages() error {
 	fileNameSource := ose.getMySQLInstallationPackagePath()
 	fileNameDest := filepath.Join(constant.DefaultTmpDir, fileName)
 	// copy mysql installation package
-	err := ose.sshConn.CopySingleFileToRemote(fileNameSource, fileNameDest)
+	err := ose.Conn.CopySingleFileToRemote(fileNameSource, fileNameDest)
 	if err != nil {
 		return errors.Trace(err)
 	}

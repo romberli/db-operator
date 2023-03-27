@@ -3,11 +3,12 @@ package mysql
 import (
 	"bytes"
 	"fmt"
-	"github.com/pingcap/errors"
-	"github.com/romberli/go-util/constant"
 	"strconv"
 	"strings"
 	"text/template"
+
+	"github.com/pingcap/errors"
+	"github.com/romberli/go-util/constant"
 )
 
 const (

@@ -2,6 +2,9 @@ package mysql
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/pingcap/errors"
 	"github.com/romberli/db-operator/config"
 	"github.com/romberli/db-operator/module/implement/mysql/parameter"
@@ -9,22 +12,24 @@ import (
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/log"
 	"github.com/spf13/viper"
-	"strconv"
 )
 
 const (
 	pmmClientInstallationPackageNameTemplate = "pmm2-client-%s-6.el7.x86_64.rpm"
 
 	checkPMMClientCommand = "/usr/local/bin/pmm-admin --version"
-	pmmAdminNotFound      = "bash: pmm-admin: command not found..."
+	pmmAdminNotFound      = "bash: line 1: /usr/local/bin/pmm-admin: No such file or directory"
 
-	pmmClientInstallCommandTemplate         = "/usr/bin/yum localinstall -y %s"
-	pmmClientConfigureServerCommandTemplate = "/usr/local/bin/pmm-admin config --server-insecure-tls %s"
-	pmmClientCheckServiceCommandTemplate    = "/usr/local/bin/pmm-admin list | grep ^MySQL | grep %d | grep -v grep | wc -l"
-	pmmClientAddServiceCommandTemplateV1    = "/usr/local/bin/pmm-admin add mysql --host=127.0.0.1 --port=%d --username=%s --password=%s %s"
-	pmmClientAddServiceCommandTemplateV2    = "/usr/local/bin/pmm-admin add mysql --host=127.0.0.1 --port=%d --username=%s --password=%s --replication-set=%s %s"
+	pmmClientInstallCommandTemplate            = "/usr/bin/yum localinstall -y %s"
+	pmmClientConfigureServerCommandTemplate    = "/usr/local/bin/pmm-admin config --server-insecure-tls --server-url=http://%s:%s@%s"
+	pmmClientStartClientCommandTemplate        = "/usr/bin/systemctl start pmm-agent"
+	pmmClientCheckConfigurationCommandTemplate = "/usr/local/bin/pmm-admin list"
+	pmmClientCheckServiceCommandTemplate       = "/usr/local/bin/pmm-admin list | grep ^MySQL | grep %d | grep -v grep | wc -l"
+	pmmClientAddServiceCommandTemplateV1       = "/usr/local/bin/pmm-admin add mysql --host=127.0.0.1 --port=%d --username=%s --password=%s %s"
+	pmmClientAddServiceCommandTemplateV2       = "/usr/local/bin/pmm-admin add mysql --host=127.0.0.1 --port=%d --username=%s --password=%s --replication-set=%s %s"
 
 	pmmClientServiceNameTemplate = "%s-%d"
+	pmmClientNodeExporterOutput  = "node_exporter"
 )
 
 type PMMExecutor struct {
@@ -62,6 +67,8 @@ func (pe *PMMExecutor) Init() error {
 		return err
 	}
 
+	var configured bool
+
 	if !installed {
 		if arch == constant.X64Arch {
 			return errors.Errorf("installing pmm client only supports %s arch, %s is not valid", constant.X64Arch, arch)
@@ -71,11 +78,26 @@ func (pe *PMMExecutor) Init() error {
 		if err != nil {
 			return err
 		}
+		configured = true
 	}
-	// configure pmm server
-	err = pe.ConfigureServer()
+
+	// check if pmm server is configured
+	configured, err = pe.CheckConfiguration()
 	if err != nil {
 		return err
+	}
+
+	if !configured {
+		// configure pmm server
+		err = pe.ConfigureServer()
+		if err != nil {
+			return err
+		}
+		// start pmm client
+		err = pe.StartClient()
+		if err != nil {
+			return err
+		}
 	}
 	// check if the service exists
 	exists, err := pe.CheckServiceExists()
@@ -97,9 +119,11 @@ func (pe *PMMExecutor) Init() error {
 func (pe *PMMExecutor) CheckPMMClient() (bool, error) {
 	_, err := pe.sshConn.ExecuteCommand(checkPMMClientCommand)
 	if err != nil {
-		if err.Error() == pmmAdminNotFound {
+		e := err.Error()
+		if strings.Contains(e, pmmAdminNotFound) {
 			return false, nil
 		}
+
 		return false, err
 	}
 
@@ -125,11 +149,26 @@ func (pe *PMMExecutor) Install() error {
 	return nil
 }
 
+// CheckConfiguration checks if pmm is configured
+func (pe *PMMExecutor) CheckConfiguration() (bool, error) {
+	output, err := pe.sshConn.ExecuteCommand(pmmClientCheckConfigurationCommandTemplate)
+	if err != nil {
+		return false, err
+	}
+
+	return strings.Contains(output, pmmClientNodeExporterOutput), nil
+}
+
 // ConfigureServer configures pmm server
 func (pe *PMMExecutor) ConfigureServer() error {
-	sql := fmt.Sprintf(pmmClientConfigureServerCommandTemplate, pe.pmmClient.ServerAddr)
+	sql := fmt.Sprintf(pmmClientConfigureServerCommandTemplate, viper.GetString(config.PMMServerUserKey), viper.GetString(config.PMMServerPassKey), pe.pmmClient.ServerAddr)
 
 	return pe.sshConn.ExecuteCommandWithoutOutput(sql)
+}
+
+// StartClient starts pmm client
+func (pe *PMMExecutor) StartClient() error {
+	return pe.sshConn.ExecuteCommandWithoutOutput(pmmClientStartClientCommandTemplate)
 }
 
 // CheckServiceExists checks if the service exists

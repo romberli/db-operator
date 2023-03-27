@@ -1,9 +1,9 @@
 package parameter
 
 import (
-	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"testing"
 
+	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"github.com/romberli/go-util/common"
 	"github.com/stretchr/testify/assert"
 )

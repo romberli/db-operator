@@ -2,11 +2,11 @@ package parameter
 
 import (
 	"fmt"
-	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"strings"
 
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
+	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"github.com/romberli/db-operator/module/implement/mysql/parameter/tmpl"
 	"github.com/romberli/db-operator/pkg/util/mysql"
 )
@@ -117,6 +117,12 @@ func (md *MySQLD) configTemplateContent(template string, m mode.Mode) string {
 		template = strings.ReplaceAll(template, "#rpl_semi_sync", "rpl_semi_sync")
 	case mode.GroupReplication:
 		template = strings.ReplaceAll(template, "#group_replication", "group_replication")
+	}
+
+	if md.Title != defaultTitle {
+		// this is a multi instance configuration
+		template = strings.ReplaceAll(template, "#mysqld", "mysqld")
+		template = strings.ReplaceAll(template, "#mysqladmin", "mysqladmin")
 	}
 
 	return template

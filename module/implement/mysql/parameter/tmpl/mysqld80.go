@@ -58,6 +58,7 @@ replica_parallel_workers=16
 replica_preserve_commit_order=1
 replica_transaction_retries=128
 binlog_transaction_dependency_tracking=writeset
+binlog_transaction_dependency_history_size=25000
 
 secure_file_priv={{.BackupDir}}
 max_connections={{.MaxConnections}}
@@ -100,5 +101,6 @@ slow_query_log_file={{.DataDirBase}}/log/mysql-slow.log
 long_query_time=0.1
 log_output=file
 performance_schema=ON
+
 `
 )

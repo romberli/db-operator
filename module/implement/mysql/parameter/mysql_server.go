@@ -3,13 +3,15 @@ package parameter
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/romberli/db-operator/module/implement/mysql/mode"
-	"github.com/romberli/db-operator/module/implement/mysql/parameter/tmpl"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
 	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/module/implement/mysql/mode"
+	"github.com/romberli/db-operator/module/implement/mysql/parameter/tmpl"
 	"github.com/romberli/db-operator/pkg/util/mysql"
 	"github.com/romberli/go-util/constant"
 	"github.com/spf13/viper"
@@ -35,6 +37,7 @@ const (
 	DefaultMaxConnections          = 2000
 	DefaultInnodbIOCapacity        = 1000
 	DefaultInnodbIOCapacityMax     = 2000
+	DefaultServerIDTemplate        = "%d%03s%03s"
 
 	initUserScriptTemplateName = "InitUserScript"
 )
@@ -173,7 +176,6 @@ func newMySQLServer(version, hostIP string, portNum int, rootPass, adminUser, ad
 	groupReplicationMemberWeight, serverID, binlogExpireLogsSeconds, binlogExpireLogsDays int, backupDir string,
 	maxConnections int, innodbBufferPoolSize string, innodbIOCapacity, innodbIOCapacityMax int) *MySQLServer {
 	return &MySQLServer{
-
 		Version:                         version,
 		HostIP:                          hostIP,
 		PortNum:                         portNum,
@@ -250,16 +252,6 @@ func (ms *MySQLServer) GetMySQLD() *MySQLD {
 	)
 }
 
-// SetHostIP sets the host IP of MySQLServer
-func (ms *MySQLServer) SetHostIP(hostIP string) {
-	ms.HostIP = hostIP
-}
-
-// SetPortNum sets the port number of MySQLServer
-func (ms *MySQLServer) SetPortNum(portNum int) {
-	ms.PortNum = portNum
-}
-
 // SetSemiSyncSourceEnabled sets the semi-sync source enabled
 func (ms *MySQLServer) SetSemiSyncSourceEnabled(semiSyncSourceEnabled int) {
 	ms.SemiSyncSourceEnabled = semiSyncSourceEnabled
@@ -268,6 +260,24 @@ func (ms *MySQLServer) SetSemiSyncSourceEnabled(semiSyncSourceEnabled int) {
 // SetSemiSyncReplicaEnabled sets the semi-sync replica enabled
 func (ms *MySQLServer) SetSemiSyncReplicaEnabled(semiSyncReplicaEnabled int) {
 	ms.SemiSyncReplicaEnabled = semiSyncReplicaEnabled
+}
+
+// InitWithHostInfo resets the MySQLServer with given host info
+func (ms *MySQLServer) InitWithHostInfo(hostIP string, portNum int) error {
+	ms.HostIP = hostIP
+	ms.PortNum = portNum
+
+	ms.DataDirBase = fmt.Sprintf(dirBaseTemplate, ms.DataDirBaseName, portNum)
+	ms.LogDirBase = fmt.Sprintf(dirBaseTemplate, ms.LogDirBaseName, portNum)
+
+	ipList := strings.Split(hostIP, constant.DotString)
+	serverIDStr := fmt.Sprintf(DefaultServerIDTemplate, portNum, ipList[constant.TwoInt], ipList[constant.ThreeInt])
+
+	var err error
+
+	ms.ServerID, err = strconv.Atoi(serverIDStr)
+
+	return errors.Trace(err)
 }
 
 func (ms *MySQLServer) GetCommonConfig() ([]byte, error) {
@@ -291,6 +301,21 @@ func (ms *MySQLServer) GetConfig(v *version.Version, m mode.Mode) ([]byte, error
 	}
 
 	mysqldConfig, err := ms.GetMySQLDConfig(v, m)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(commonConfig, mysqldConfig...), nil
+}
+
+// GetConfigWithTitle gets the configuration of MySQLServer with given title
+func (ms *MySQLServer) GetConfigWithTitle(title string, v *version.Version, m mode.Mode) ([]byte, error) {
+	commonConfig, err := ms.GetCommonConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	mysqldConfig, err := ms.GetMySQLDConfigWithTitle(title, v, m)
 	if err != nil {
 		return nil, err
 	}

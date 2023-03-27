@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"fmt"
-	"github.com/romberli/go-util/middleware/mysql"
 	"net"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"github.com/romberli/db-operator/pkg/util/ssh"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/linux"
+	"github.com/romberli/go-util/middleware/mysql"
 	"github.com/romberli/log"
 	"github.com/spf13/viper"
 )
@@ -32,26 +32,32 @@ const (
 	mysqldMultiTitleTemplate             = "mysqld%d"
 	mysqldSingleInstanceSectionTemplate  = "[mysqld]"
 	mysqldMultiInstanceSectionTemplate   = "[mysqld%d]"
-	mysqldMultiInstanceIsRunningTemplate = "mysqld%d is running"
+	mysqldMultiInstanceIsRunningTemplate = "MySQL server from group: mysqld%d is running"
 
+	getMySQLPIDListCommandTemplate     = `/usr/bin/ps -ef | /usr/bin/grep mysqld | /usr/bin/grep %d | /usr/bin/grep %s | /usr/bin/grep -v grep | /usr/bin/awk -F' ' '{print \$2}'`
 	initMySQLInstanceCommandTemplate   = "%s/bin/mysqld --defaults-file=/tmp/my.cnf.%d --initialize --basedir=%s --datadir=%s/data --user=%s"
-	getDefaultRootPassCommandTemplate  = "grep 'A temporary password is generated for root@localhost' %s/%s/mysql.err | awk -F' ' '{print $NF}'"
-	startSingleInstanceCommandTemplate = "%s/bin/mysqld --defaults-file=/tmp/my.cnf.%d --basedir=%s --datadir=%s/data --user=%s"
-	startMultiInstanceCommandTemplate  = "%s/bin/mysqld_multi start %d"
-	checkMultiInstanceCommandTemplate  = "%s/bin/mysqld_multi report %d "
-	initMySQLUserCommandTemplate       = `%s/bin/mysql --connect-expired-password -uroot -p'%s' -S %s/run/mysql.sock -e "%s"`
+	getDefaultRootPassCommandTemplate  = `grep 'A temporary password is generated for root@localhost' %s/%s/mysql.err | awk -F' ' '{print \$NF}'`
+	startSingleInstanceCommandTemplate = "%s/bin/mysqld --defaults-file=/tmp/my.cnf.%d --basedir=%s --datadir=%s/data --user=%s &"
+	startMultiInstanceCommandTemplate  = "export PATH=$PATH:%s/bin && mysqld_multi start %d"
+	checkMultiInstanceCommandTemplate  = `export PATH=$PATH:%s/bin && mysqld_multi report %d | /usr/bin/grep \"MySQL server from group\"`
+	initMySQLUserCommandTemplate       = `%s/bin/mysql --connect-expired-password -uroot -p'%s' -S %s/run/mysql.sock -e \"%s\"`
 
 	shutdownSQL     = "shutdown ;"
 	startReplicaSQL = "start replica ;"
 	stopReplicaSQL  = "stop replica ;"
 
-	changeMasterSQLTemplate = "change master to master_host='%s', master_port=%d, master_user='%s', master_password='%s', master_auto_position=1 ;"
-	SlaveThreadIsRunning    = "Slave_IO_Running: YES, Slave_SQL_Running: YES"
+	changeMasterSQLTemplate    = "change master to master_host='%s', master_port=%d, master_user='%s', master_password='%s', master_auto_position=1 ;"
+	SlaveIOThreadRunningField  = "Slave_IO_Running"
+	SlaveSQLThreadRunningField = "Slave_SQL_Running"
+	IsRunningValue             = "Yes"
+
+	maxRetryCount = 5
+	retryInterval = 2 * time.Second
 )
 
 type Engine struct {
 	dboRepo      *DBORepo
-	sshConn      *ssh.Conn
+	ose          *OSExecutor
 	mysqlVersion *version.Version
 	Mode         mode.Mode              `json:"mode"`
 	Addrs        []string               `json:"addrs"`
@@ -88,6 +94,24 @@ func newEngine(dboRepo *DBORepo, mysqlVersion *version.Version, m mode.Mode, add
 	}
 }
 
+// InitOSExecutor initializes the ssh connection
+func (e *Engine) InitOSExecutor() error {
+	sshConn, err := linux.NewSSHConn(
+		e.MySQLServer.HostIP,
+		constant.DefaultSSHPort,
+		viper.GetString(config.MySQLUserOSUserKey),
+		viper.GetString(config.MySQLUserOSPassKey),
+		defaultUseSudo,
+	)
+	if err != nil {
+		return err
+	}
+
+	e.ose = NewOSExecutor(ssh.NewConn(sshConn), e.mysqlVersion, e.MySQLServer)
+
+	return nil
+}
+
 // Install installs mysql to the hosts
 func (e *Engine) Install() error {
 	err := linux.SortAddrs(e.Addrs)
@@ -120,20 +144,24 @@ func (e *Engine) Install() error {
 			return errors.Trace(err)
 		}
 
-		// init ssh conn
-		err = e.InitSSHConn(hostIP)
+		// reset MySQL Sever Parameter
+		err = e.MySQLServer.InitWithHostInfo(hostIP, portNum)
 		if err != nil {
 			return err
 		}
 
-		// set MySQL Sever Parameter
-		e.MySQLServer.SetHostIP(hostIP)
-		e.MySQLServer.SetPortNum(portNum)
+		// init ssh conn
+		err = e.InitOSExecutor()
+		if err != nil {
+			return err
+		}
 
 		if i == constant.ZeroInt {
 			isSource = true
 			sourceHostIP = hostIP
 			sourcePortNum = portNum
+			e.MySQLServer.SetSemiSyncSourceEnabled(constant.OneInt)
+			e.MySQLServer.SetSemiSyncReplicaEnabled(constant.ZeroInt)
 		}
 
 		// init os
@@ -142,7 +170,7 @@ func (e *Engine) Install() error {
 			return err
 		}
 		// init mysql instance
-		err = e.InitMySQLInstance(isSource)
+		err = e.InitMySQLInstance()
 		if err != nil {
 			return err
 		}
@@ -171,25 +199,41 @@ func (e *Engine) Install() error {
 
 // InitOS initializes the os
 func (e *Engine) InitOS() error {
-	osExecutor := NewOSExecutor(e.mysqlVersion, e.sshConn, e.MySQLServer)
+	err := e.InitOSExecutor()
+	if err != nil {
+		return err
+	}
 
-	return osExecutor.Init()
+	return e.ose.Init()
 }
 
 // InitMySQLInstance initializes the mysql instance
-func (e *Engine) InitMySQLInstance(isSource bool) error {
+func (e *Engine) InitMySQLInstance() error {
 	// prepare mysql multi instance config file
-	err := e.prepareMultiInstanceConfigFile(isSource)
+	err := e.prepareMultiInstanceConfigFile()
+	if err != nil {
+		return err
+	}
 	// init single instance
 	rootPass, err := e.initMySQLInstance()
 	if err != nil {
 		return err
 	}
-	// start mysql single instance
-	err = e.startInstanceWithMySQLD()
+	// start mysql single instance asynchronously
+	go func() {
+		err = e.startInstanceWithMySQLD()
+		if err != nil {
+			log.Errorf("start mysql instance failed. error:\n%+v", err)
+		}
+	}()
+	time.Sleep(retryInterval)
+	// check instance status
+	err = e.checkInstanceWithPID()
 	if err != nil {
 		return err
 	}
+	// sleep for a while to wait for mysql to be ready
+	time.Sleep(retryInterval)
 	// init mysql user
 	err = e.initMySQLUser(rootPass)
 	if err != nil {
@@ -205,6 +249,7 @@ func (e *Engine) InitMySQLInstance(isSource bool) error {
 	if err != nil {
 		return err
 	}
+	time.Sleep(retryInterval)
 	// check mysql multi instance
 	isRunning, err := e.checkInstanceWithMySQLDMulti()
 	if err != nil {
@@ -226,7 +271,7 @@ func (e *Engine) initMySQLInstance() (string, error) {
 	}
 	// init mysql instance
 	cmd := fmt.Sprintf(initMySQLInstanceCommandTemplate, e.MySQLServer.BinaryDirBase, e.MySQLServer.PortNum, e.MySQLServer.BinaryDirBase, e.MySQLServer.DataDirBase, defaultMySQLUser)
-	err = e.sshConn.ExecuteCommandWithoutOutput(cmd)
+	err = e.ose.Conn.ExecuteCommandWithoutOutput(cmd)
 	if err != nil {
 		return constant.EmptyString, err
 	}
@@ -239,7 +284,26 @@ func (e *Engine) initMySQLInstance() (string, error) {
 func (e *Engine) startInstanceWithMySQLD() error {
 	cmd := fmt.Sprintf(startSingleInstanceCommandTemplate, e.MySQLServer.BinaryDirBase, e.MySQLServer.PortNum, e.MySQLServer.BinaryDirBase, e.MySQLServer.DataDirBase, defaultMySQLUser)
 
-	return e.sshConn.ExecuteCommandWithoutOutput(cmd)
+	return e.ose.Conn.ExecuteCommandWithoutOutput(cmd)
+}
+
+// checkInstanceWithPID checks the instance with pid
+func (e *Engine) checkInstanceWithPID() error {
+	for i := constant.ZeroInt; i < maxRetryCount; i++ {
+		pidList, err := e.ose.GetMySQLPIDList()
+		if err != nil {
+			return err
+		}
+
+		if len(pidList) > constant.ZeroInt {
+			return nil
+		}
+
+		log.Warnf("no mysqld pid found, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		time.Sleep(retryInterval)
+	}
+
+	return errors.Errorf("maximum retry count of checking mysql pid exceeded, but still no mysqld pid found. port_num: %d, max_retry_count: %d", e.MySQLServer.PortNum, maxRetryCount)
 }
 
 // initMySQLUser initializes the user
@@ -251,43 +315,37 @@ func (e *Engine) initMySQLUser(rootPass string) error {
 
 	command := fmt.Sprintf(initMySQLUserCommandTemplate, e.MySQLServer.BinaryDirBase, rootPass, e.MySQLServer.DataDirBase, sql)
 
-	return e.sshConn.ExecuteCommandWithoutOutput(command)
+	return e.ose.Conn.ExecuteCommandWithoutOutput(command)
 }
 
 // prepareMultiInstanceConfigFile prepares mysql config file
-func (e *Engine) prepareMultiInstanceConfigFile(isSource bool) error {
+func (e *Engine) prepareMultiInstanceConfigFile() error {
 	// check if the config file exists
-	exists, err := e.sshConn.PathExists(defaultConfigFileName)
+	exists, err := e.ose.Conn.PathExists(defaultConfigFileName)
 	if err != nil {
 		return err
 	}
 
+	title := e.getMultiInstanceTitle()
+
 	if !exists {
 		// the config file does not exist, generate a new one
-		if isSource {
-			e.MySQLServer.SetSemiSyncSourceEnabled(constant.OneInt)
-			e.MySQLServer.SetSemiSyncReplicaEnabled(constant.ZeroInt)
-		}
-		configBytes, err := e.MySQLServer.GetConfig(e.mysqlVersion, e.Mode)
+		configBytes, err := e.MySQLServer.GetConfigWithTitle(title, e.mysqlVersion, e.Mode)
 		if err != nil {
 			return err
 		}
 
-		fileName := fmt.Sprintf(configFileNameTemplate, e.MySQLServer.PortNum)
-		fileDest := filepath.Join(constant.DefaultTmpDir, fileName)
-
-		return e.transferConfigContent(string(configBytes), fileName, fileDest)
+		return e.transferConfigContent(configBytes, fmt.Sprintf(configFileNameTemplate, e.MySQLServer.PortNum), defaultConfigFileName)
 	}
 
 	// the config file exists
 	// backup the config file
-	err = e.sshConn.Copy(defaultConfigFileName,
-		fmt.Sprintf(defaultConfigFileBackupNameTemplate, time.Now().Format(constant.TimeLayoutSecondDash)))
+	err = e.ose.Conn.Copy(defaultConfigFileName, fmt.Sprintf(defaultConfigFileBackupNameTemplate, time.Now().Format(constant.TimeLayoutSecondDash)))
 	if err != nil {
 		return err
 	}
 	// get the config file content
-	existingContent, err := e.sshConn.Cat(defaultConfigFileName)
+	existingContent, err := e.ose.Conn.Cat(defaultConfigFileName)
 	if err != nil {
 		return err
 	}
@@ -299,7 +357,7 @@ func (e *Engine) prepareMultiInstanceConfigFile(isSource bool) error {
 
 	if !strings.Contains(existingContent, fmt.Sprintf(mysqldMultiInstanceSectionTemplate, e.MySQLServer.PortNum)) {
 		// the instance section does not exist
-		newContent, err := e.MySQLServer.GetMySQLDConfigWithTitle(e.getTitle(), e.mysqlVersion, e.Mode)
+		newContent, err := e.MySQLServer.GetMySQLDConfigWithTitle(title, e.mysqlVersion, e.Mode)
 		if err != nil {
 			return err
 		}
@@ -307,7 +365,7 @@ func (e *Engine) prepareMultiInstanceConfigFile(isSource bool) error {
 		content := existingContent + string(newContent)
 		fileName := fmt.Sprintf(configFileNameTemplate, e.MySQLServer.PortNum)
 
-		return e.transferConfigContent(content, fileName, defaultConfigFileName)
+		return e.transferConfigContent([]byte(content), fileName, defaultConfigFileName)
 	}
 
 	// the instance section exists, do nothing
@@ -343,44 +401,37 @@ func (e *Engine) stopInstance() error {
 func (e *Engine) startInstanceWithMySQLDMulti() error {
 	cmd := fmt.Sprintf(startMultiInstanceCommandTemplate, e.MySQLServer.BinaryDirBase, e.MySQLServer.PortNum)
 
-	return e.sshConn.ExecuteCommandWithoutOutput(cmd)
+	return e.ose.Conn.ExecuteCommandWithoutOutput(cmd)
 }
 
 // checkInstanceWithMySQLDMulti checks the instance with mysqld_multi
 func (e *Engine) checkInstanceWithMySQLDMulti() (bool, error) {
 	cmd := fmt.Sprintf(checkMultiInstanceCommandTemplate, e.MySQLServer.BinaryDirBase, e.MySQLServer.PortNum)
+	instanceRunning := fmt.Sprintf(mysqldMultiInstanceIsRunningTemplate, e.MySQLServer.PortNum)
 
-	output, err := e.sshConn.ExecuteCommand(cmd)
-	if err != nil {
-		return false, err
+	for i := constant.ZeroInt; i < maxRetryCount; i++ {
+		output, err := e.ose.Conn.ExecuteCommand(cmd)
+		if err != nil {
+			return false, err
+		}
+
+		if output == instanceRunning {
+			return true, nil
+		}
+
+		log.Warnf("mysqld multi instance is not running. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		time.Sleep(retryInterval)
+		continue
 	}
 
-	return output == fmt.Sprintf(mysqldMultiInstanceIsRunningTemplate, e.MySQLServer.PortNum), nil
+	return false, nil
 }
 
 // InitPMMClient initializes the pmm client
 func (e *Engine) InitPMMClient() error {
-	pmmExecutor := NewPMMExecutor(e.sshConn, e.MySQLServer.HostIP, e.MySQLServer.PortNum, e.PMMClient)
+	pmmExecutor := NewPMMExecutor(e.ose.Conn, e.MySQLServer.HostIP, e.MySQLServer.PortNum, e.PMMClient)
 
 	return pmmExecutor.Init()
-}
-
-// InitSSHConn initializes the ssh connection
-func (e *Engine) InitSSHConn(hostIP string) error {
-	sshConn, err := linux.NewSSHConn(
-		hostIP,
-		constant.DefaultSSHPort,
-		viper.GetString(config.MySQLUserOSUserKey),
-		viper.GetString(config.MySQLUserOSPassKey),
-		defaultUseSudo,
-	)
-	if err != nil {
-		return err
-	}
-
-	e.sshConn = ssh.NewConn(sshConn)
-
-	return nil
 }
 
 // prepareInitConfigFile prepares mysql config file for initializing mysql instance
@@ -393,11 +444,11 @@ func (e *Engine) prepareInitConfigFile() error {
 	fileName := fmt.Sprintf(configFileNameTemplate, e.MySQLServer.PortNum)
 	fileDest := filepath.Join(constant.DefaultTmpDir, fileName)
 
-	return e.transferConfigContent(string(configBytes), fileName, fileDest)
+	return e.transferConfigContent(configBytes, fileName, fileDest)
 }
 
 // transferConfigContent transfers the config content to the remote host
-func (e *Engine) transferConfigContent(configContent string, fileNameSource, filePathDest string) error {
+func (e *Engine) transferConfigContent(configContent []byte, fileNameSource, filePathDest string) error {
 	fileSource, err := os.CreateTemp(viper.GetString(config.MySQLInstallationTemporaryDirKey), fileNameSource)
 	if err != nil {
 		return err
@@ -413,26 +464,26 @@ func (e *Engine) transferConfigContent(configContent string, fileNameSource, fil
 		}
 	}()
 
-	_, err = fileSource.WriteString(configContent)
+	_, err = fileSource.Write(configContent)
 	if err != nil {
 		return err
 	}
-	err = e.sshConn.CopySingleFileToRemote(fileSource.Name(), filePathDest, constant.DefaultTmpDir)
+	err = e.ose.Conn.CopySingleFileToRemote(fileSource.Name(), filePathDest, constant.DefaultTmpDir)
 	if err != nil {
 		return err
 	}
 
-	return e.sshConn.Chown(filePathDest, defaultMySQLUser, defaultMySQLUser)
+	return e.ose.Conn.Chown(filePathDest, defaultMySQLUser, defaultMySQLUser)
 }
 
-// getTitle gets the title of the instance
-func (e *Engine) getTitle() string {
+// getMultiInstanceTitle gets the title of the instance
+func (e *Engine) getMultiInstanceTitle() string {
 	return fmt.Sprintf(mysqldMultiTitleTemplate, e.MySQLServer.PortNum)
 }
 
 // getDefaultMySQLRootPass gets the default mysql root password
 func (e *Engine) getDefaultMySQLRootPass() (string, error) {
-	output, err := e.sshConn.ExecuteCommand(fmt.Sprintf(getDefaultRootPassCommandTemplate, e.MySQLServer.DataDirBase, logDirName))
+	output, err := e.ose.Conn.ExecuteCommand(fmt.Sprintf(getDefaultRootPassCommandTemplate, e.MySQLServer.DataDirBase, logDirName))
 	if err != nil {
 		return constant.EmptyString, err
 	}
@@ -490,16 +541,63 @@ func (e *Engine) ConfigureReplication(addr, sourceHostIP string, sourcePortNum i
 		return err
 	}
 
-	result, err := conn.GetReplicationSlavesStatus()
-	if err != nil {
-		return err
+	var status string
+	// check io thread
+	for i := constant.ZeroInt; i < maxRetryCount; i++ {
+		result, err := conn.GetReplicationSlavesStatus()
+		if err != nil {
+			return err
+		}
+
+		status, err = result.GetStringByName(constant.ZeroInt, SlaveIOThreadRunningField)
+		if err != nil {
+			return err
+		}
+		if status != IsRunningValue {
+			log.Warnf("slave io thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+			time.Sleep(retryInterval)
+			continue
+		}
+		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
+		if err != nil {
+			return err
+		}
+		if status == IsRunningValue {
+			break
+		}
+
+		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		time.Sleep(retryInterval)
+		continue
 	}
-	status, err := result.GetString(constant.ZeroInt, constant.ZeroInt)
-	if err != nil {
-		return err
+
+	if status != IsRunningValue {
+		return errors.Errorf("slave io thread is not running")
 	}
-	if !strings.Contains(status, SlaveThreadIsRunning) {
-		return errors.Errorf("slave thread is not running")
+
+	// check sql thread
+	for i := constant.ZeroInt; i < maxRetryCount; i++ {
+		result, err := conn.GetReplicationSlavesStatus()
+		if err != nil {
+			return err
+		}
+
+		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
+		if err != nil {
+			return err
+		}
+
+		if status == IsRunningValue {
+			break
+		}
+
+		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		time.Sleep(retryInterval)
+		continue
+	}
+
+	if status != IsRunningValue {
+		return errors.Errorf("slave sql thread is not running")
 	}
 
 	return nil

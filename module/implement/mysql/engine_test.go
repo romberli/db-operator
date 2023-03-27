@@ -2,24 +2,32 @@ package mysql
 
 import (
 	"fmt"
+	"net"
+	"strconv"
+	"strings"
+	"testing"
+
 	"github.com/hashicorp/go-version"
+	"github.com/pingcap/errors"
 	"github.com/romberli/db-operator/config"
 	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"github.com/romberli/db-operator/module/implement/mysql/parameter"
-	"github.com/romberli/db-operator/pkg/util/ssh"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/linux"
 	"github.com/romberli/go-util/middleware/mysql"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const (
 	testMySQLInstallationPackageDir = "/data/software/mysql"
 
-	testHostIP          = "192.168.137.21"
-	testPortNum         = 3306
+	testHostIP1         = "192.168.137.21"
+	testPortNum1        = 3306
+	testHostIP2         = "192.168.137.21"
+	testPortNum2        = 3307
+	testHostIP3         = "192.168.137.21"
+	testPortNum3        = 3308
 	testDataDirBaseName = "/data/mysql/data"
 	testLogDirBaseName  = "/data/mysql/data"
 	testRootPaas        = "root"
@@ -45,7 +53,6 @@ const (
 	testGroupReplicationConsistency     = "eventual"
 	testGroupReplicationFlowControlMode = "disabled"
 	testGroupReplicationMemberWeight    = 50
-	testServerID                        = 3306137011
 	testBinlogExpireLogsSeconds         = 604800
 	testBinlogExpireLogsDays            = 7
 	testBackupDir                       = "/data/backup"
@@ -63,31 +70,43 @@ const (
 	testMode            = mode.AsyncReplication
 
 	testPMMServerAddr      = "192.168.137.11:443"
+	testPMMServerUser      = "admin"
+	testPMMServerPass      = "admin"
 	testPMMClientVersion   = "2.24.0"
 	testPMMServiceName     = "192-168-137-11-3306"
 	testReplicationSetName = constant.EmptyString
 
-	testDateCommand = "date +%Y%m%d-%H%M%S"
+	testDateCommand          = "date +%Y%m%d-%H%M%S"
+	testGetPIDCommand        = `ps -ef | grep mysqld | grep %d | grep -v grep | awk -F' ' '{print \$3}'`
+	testKillMySQLDCommand    = "kill -9 %d"
+	testRemoveDataDirCommand = "rm -rf %s"
+	testRemoveBaseDirCommand = "rm -rf %s"
+	testRemove
+
+	testCheckSlaveStatusSQL = "show slave status"
 )
 
 var (
-	testAddr  = fmt.Sprintf("%s:%d", testHostIP, testPortNum)
-	testAddrs = []string{testAddr}
+	testAddr1 = fmt.Sprintf("%s:%d", testHostIP1, testPortNum1)
+	testAddr2 = fmt.Sprintf("%s:%d", testHostIP2, testPortNum2)
+	testAddr3 = fmt.Sprintf("%s:%d", testHostIP3, testPortNum3)
+	testAddrs = []string{testAddr1, testAddr2}
 
 	testOSVersion    = version.Must(version.NewVersion(testOSVersionStr))
 	testMySQLVersion = version.Must(version.NewVersion(testMySQLVersionStr))
 
+	testServerID    int
 	testMySQLServer *parameter.MySQLServer
-	testPMMClient   *parameter.PMMClient
-
-	testEngine *Engine
+	testEngine      *Engine
 )
 
 func init() {
 	testInitViper()
-	testMySQLServer = testInitMySQLServer()
+	testServerID = testInitServerID(testHostIP1, testPortNum1)
+	testMySQLServer = testInitMySQLServer(testHostIP1, testPortNum1, testServerID)
 	testPMMClient = testInitPMMClient()
-	testSSHConn = testInitSSHConn()
+	testConn = testInitSSHConn(testHostIP1)
+	testOSExecutor = testInitOSExecutor()
 
 	testEngine = testInitEngine()
 }
@@ -96,15 +115,30 @@ func testInitViper() {
 	viper.Set(config.MySQLInstallationPackageDirKey, testMySQLInstallationPackageDir)
 	viper.Set(config.MySQLUserOSUserKey, testOSUser)
 	viper.Set(config.MySQLUserOSPassKey, testOSPass)
+	viper.Set(config.MySQLUserMonitorUserKey, testMonitorUser)
+	viper.Set(config.MySQLUserMonitorPassKey, testMonitorPass)
 	viper.Set(config.PMMServerAddrKey, testPMMServerAddr)
+	viper.Set(config.PMMServerUserKey, testPMMServerUser)
+	viper.Set(config.PMMServerPassKey, testPMMServerPass)
 	viper.Set(config.PMMClientVersionKey, testPMMClientVersion)
 }
 
-func testInitMySQLServer() *parameter.MySQLServer {
+func testInitServerID(hostIP string, portNum int) int {
+	ipList := strings.Split(hostIP, constant.DotString)
+	serverIDStr := fmt.Sprintf(parameter.DefaultServerIDTemplate, portNum, ipList[constant.TwoInt], ipList[constant.ThreeInt])
+	serverID, err := strconv.Atoi(serverIDStr)
+	if err != nil {
+		panic(err)
+	}
+
+	return serverID
+}
+
+func testInitMySQLServer(hostIP string, portNum, serverID int) *parameter.MySQLServer {
 	return parameter.NewMySQLServer(
 		testVersion,
-		testHostIP,
-		testPortNum,
+		hostIP,
+		portNum,
 		testRootPaas,
 		testAdminUser,
 		testAdminPass,
@@ -128,7 +162,7 @@ func testInitMySQLServer() *parameter.MySQLServer {
 		testGroupReplicationConsistency,
 		testGroupReplicationFlowControlMode,
 		testGroupReplicationMemberWeight,
-		testServerID,
+		serverID,
 		testBinlogExpireLogsSeconds,
 		testBinlogExpireLogsDays,
 		testBackupDir,
@@ -138,53 +172,117 @@ func testInitMySQLServer() *parameter.MySQLServer {
 	)
 }
 
-func testInitPMMClient() *parameter.PMMClient {
-	return parameter.NewPMMClientWithDefault()
-}
-
-func testInitSSHConn() *ssh.Conn {
-	sshConn, err := linux.NewSSHConn(testHostIP, constant.DefaultSSHPort, testOSUser, testOSPass, testUseSudo)
-	if err != nil {
-		panic(err)
-	}
-
-	return ssh.NewConn(sshConn)
-}
-
 func testInitEngine() *Engine {
 	return NewEngineWithDefault(testMySQLVersion, testMode, testAddrs, testMySQLServer, testPMMClient)
+}
+
+func testInitInstance(addrs []string) error {
+	err := linux.SortAddrs(addrs)
+	if err != nil {
+		return err
+	}
+
+	for i, addr := range addrs {
+		var (
+			hostIP     string
+			portNumStr string
+			portNum    int
+		)
+
+		hostIP, portNumStr, err = net.SplitHostPort(addr)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		if hostIP == constant.EmptyString || portNumStr == constant.EmptyString {
+			return errors.Errorf("invalid addr: %s", addr)
+		}
+		portNum, err = strconv.Atoi(portNumStr)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		// set MySQL Sever Parameter
+		testServerID = testInitServerID(hostIP, portNum)
+		testConn = testInitSSHConn(hostIP)
+		testOSExecutor = testInitOSExecutor()
+		testMySQLServer = testInitMySQLServer(hostIP, portNum, testServerID)
+		err = testMySQLServer.InitWithHostInfo(hostIP, portNum)
+		if err != nil {
+			return err
+		}
+
+		testEngine.MySQLServer = testMySQLServer
+		testOSExecutor.mysqlServer = testMySQLServer
+
+		// init os executor
+		err = testEngine.InitOSExecutor()
+		if err != nil {
+			return err
+		}
+
+		// clear previous mysql server
+		err = testClearMySQL()
+		if err != nil {
+			return err
+		}
+
+		//
+		if i == constant.ZeroInt {
+			testEngine.MySQLServer.SetSemiSyncSourceEnabled(constant.OneInt)
+			testEngine.MySQLServer.SetSemiSyncReplicaEnabled(constant.ZeroInt)
+		}
+
+		// init os
+		err = testEngine.InitOS()
+		if err != nil {
+			return err
+		}
+		// init mysql instance
+		err = testEngine.InitMySQLInstance()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func TestEngine_All(t *testing.T) {
 	TestEngine_InitMySQLInstance(t)
 	TestEngine_ConfigureReplication(t)
 	TestEngine_InitPMMClient(t)
-	TestEngine_ConfigurePMMClient(t)
+	TestEngine_ConfigureGroupReplication(t)
 	TestEngine_Install(t)
 }
 
 func TestEngine_InitSSHConn(t *testing.T) {
 	asst := assert.New(t)
 
-	err := testEngine.InitSSHConn(testHostIP)
-	asst.Nil(err, "test InitSSHConn() failed")
-	asst.NotNil(testEngine.sshConn, "test InitSSHConn() failed")
-	output, err := testEngine.sshConn.ExecuteCommand(testDateCommand)
-	asst.Nil(err, "test InitSSHConn() failed")
+	err := testEngine.InitOSExecutor()
+	asst.Nil(err, "test InitOSExecutor() failed")
+	asst.NotNil(testEngine.ose.Conn, "test InitOSExecutor() failed")
+	output, err := testEngine.ose.Conn.ExecuteCommand(testDateCommand)
+	asst.Nil(err, "test InitOSExecutor() failed")
 	t.Logf("output: %s", output)
 }
 
 func TestEngine_InitMySQLInstance(t *testing.T) {
 	asst := assert.New(t)
-	// init ssh conn
-	err := testEngine.InitSSHConn(testHostIP)
-	asst.Nil(err, "test InitSSHConn() failed")
-	asst.NotNil(testEngine.sshConn, "test InitSSHConn() failed")
+
+	// init os executor
+	err := testEngine.InitOSExecutor()
+	asst.Nil(err, "test InitOSExecutor() failed")
+	asst.NotNil(testEngine.ose.Conn, "test InitOSExecutor() failed")
+	// clear previous mysql server
+	err = testClearMySQL()
+	asst.Nil(err, "test InitMySQLInstance() failed")
+	// init os
+	err = testEngine.InitOS()
+	asst.Nil(err, "test InitMySQLInstance() failed")
 	// init mysql instance
-	err = testEngine.InitMySQLInstance(true)
+	err = testEngine.InitMySQLInstance()
 	asst.Nil(err, "test InitMySQLInstance() failed")
 	// create connection
-	conn, err := mysql.NewConn(testAddr, constant.EmptyString, testClientUser, testClientPass)
+	conn, err := mysql.NewConn(testAddr1, constant.EmptyString, testClientUser, testClientPass)
 	asst.Nil(err, "test InitMySQLInstance() failed")
 	defer func() {
 		err = conn.Close()
@@ -193,34 +291,38 @@ func TestEngine_InitMySQLInstance(t *testing.T) {
 	// check version
 	ok := conn.CheckInstanceStatus()
 	asst.True(ok, "test InitMySQLInstance() failed")
+	// clear mysql server
+	err = testClearMySQL()
+	asst.Nil(err, "test InitMySQLInstance() failed")
 }
 
 func TestEngine_ConfigureReplication(t *testing.T) {
 	asst := assert.New(t)
 
-	err := testEngine.ConfigureReplication(testAddr, testHostIP, testPortNum)
-	asst.Nil(err, "test ConfigureMySQLCluster() failed")
+	err := testInitInstance(testAddrs)
+	asst.Nil(err, "test ConfigureReplication() failed")
+
+	err = testEngine.ConfigureReplication(testAddr2, testHostIP1, testPortNum1)
+	asst.Nil(err, "test ConfigureReplication() failed")
 	// create connection
-	conn, err := mysql.NewConn(testAddr, constant.EmptyString, testClientUser, testClientPass)
-	asst.Nil(err, "test ConfigureMySQLCluster() failed")
+	conn, err := mysql.NewConn(testAddr2, constant.EmptyString, testClientUser, testClientPass)
+	asst.Nil(err, "test ConfigureReplication() failed")
 	defer func() {
 		err = conn.Close()
-		asst.Nil(err, "test ConfigureMySQLCluster() failed")
+		asst.Nil(err, "test ConfigureReplication() failed")
 	}()
 	// check version
-	ok := conn.CheckInstanceStatus()
-	asst.True(ok, "test ConfigureMySQLCluster() failed")
+	result, err := conn.Conn.Execute(testCheckSlaveStatusSQL)
+	asst.Nil(err, "test ConfigureReplication() failed")
+	asst.True(result.RowNumber() == 1, "test ConfigureReplication() failed")
 }
 
 func TestEngine_InitPMMClient(t *testing.T) {
 
 }
 
-func TestEngine_ConfigurePMMClient(t *testing.T) {
-	asst := assert.New(t)
+func TestEngine_ConfigureGroupReplication(t *testing.T) {
 
-	err := testEngine.ConfigureGroupReplication()
-	asst.Nil(err, "test ConfigureGroupReplication() failed")
 }
 
 func TestEngine_Install(t *testing.T) {
