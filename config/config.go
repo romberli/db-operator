@@ -116,6 +116,7 @@ func SetDefaultMySQL() {
 	viper.SetDefault(MySQLUserMonitorPassKey, DefaultMySQLUserMonitorPass)
 	viper.SetDefault(MySQLUserDASUserKey, DefaultMySQLUserDASUser)
 	viper.SetDefault(MySQLUserDASPassKey, DefaultMySQLUserDASPass)
+	viper.SetDefault(MySQLOperationTimeoutKey, DefaultMySQLOperationTimeout)
 }
 
 // SetDefaultPMM sets the default value of pmm

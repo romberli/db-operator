@@ -238,6 +238,9 @@ func overrideMySQLByCLI() {
 	if mysqlUserDASPass != constant.DefaultRandomString {
 		viper.Set(config.MySQLUserDASPassKey, mysqlUserDASPass)
 	}
+	if mysqlOperationTimeout != constant.DefaultRandomInt {
+		viper.Set(config.MySQLOperationTimeoutKey, mysqlOperationTimeout)
+	}
 }
 
 // overridePMMByCLI overrides the pmm section by command line interface

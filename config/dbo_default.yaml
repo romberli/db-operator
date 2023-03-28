@@ -287,6 +287,12 @@ mysql:
     # type: string
     # default: das
     dasPass: das
+  # description: specify the default mysql operation timeout
+  # command-line-argument: --mysql-operation-timeout
+  # unit: second
+  # type: int
+  # default: 86400
+  operationTimeout: 86400
 
 # pmm configuration
 pmm:

@@ -28,6 +28,15 @@ func testInitPMMExecutor(hostIP string, portNum int) *PMMExecutor {
 	return NewPMMExecutor(testConn, hostIP, portNum, testPMMClient)
 }
 
+func TestPMMExecutor_All(t *testing.T) {
+	TestPMMExecutor_CheckPMMClient(t)
+	TestPMMExecutor_Install(t)
+	TestPMMExecutor_CheckConfiguration(t)
+	TestPMMExecutor_ConfigureServer(t)
+	TestPMMExecutor_CheckServiceExists(t)
+	TestPMMExecutor_AddService(t)
+}
+
 func TestPMMExecutor_CheckPMMClient(t *testing.T) {
 	asst := assert.New(t)
 
@@ -36,7 +45,7 @@ func TestPMMExecutor_CheckPMMClient(t *testing.T) {
 	asst.True(ok, "test CheckPMMClient() failed")
 }
 
-func TestNewPMMExecutor_Install(t *testing.T) {
+func TestPMMExecutor_Install(t *testing.T) {
 	asst := assert.New(t)
 
 	arch, err := testPMMExecutor.sshConn.GetArch()
@@ -49,7 +58,7 @@ func TestNewPMMExecutor_Install(t *testing.T) {
 	}
 }
 
-func TestNewPMMExecutor_CheckConfiguration(t *testing.T) {
+func TestPMMExecutor_CheckConfiguration(t *testing.T) {
 	asst := assert.New(t)
 
 	configured, err := testPMMExecutor.CheckConfiguration()

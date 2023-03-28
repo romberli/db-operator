@@ -10,6 +10,7 @@ import (
 	"github.com/romberli/db-operator/module/implement/mysql"
 	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/db-operator/pkg/resp"
+	"github.com/romberli/go-util/linux"
 
 	jsonmysql "github.com/romberli/db-operator/pkg/json/mysql"
 	msgMySQL "github.com/romberli/db-operator/pkg/message/mysql"
@@ -29,7 +30,7 @@ const (
 // @Param	pmmClientParam		body parameter.PMMClient   true "pmm_client_param"
 // @Produce application/json
 // @Success 200 {string} string "0"
-// @Router	/api/v1/mysql/install/ [get]
+// @Router	/api/v1/mysql/install [get]
 func Install(c *gin.Context) {
 	data, err := c.GetRawData()
 	if err != nil {
@@ -43,10 +44,14 @@ func Install(c *gin.Context) {
 		resp.ResponseNOK(c, message.ErrUnmarshalRawData, errors.Trace(err))
 		return
 	}
-
 	mysqlVersion, err := version.NewVersion(installMySQL.MySQLServerParam.Version)
 	if err != nil {
 		resp.ResponseNOK(c, msgMySQL.ErrMySQLNotValidConfigMySQLVersion, errors.Trace(err))
+		return
+	}
+	err = linux.SortAddrs(installMySQL.Addrs)
+	if err != nil {
+		resp.ResponseNOK(c, message.ErrSortAddrs, err, installMySQL.Addrs)
 		return
 	}
 
@@ -68,7 +73,7 @@ func Install(c *gin.Context) {
 	s := mysql.NewServiceWithDefault(e)
 	err = s.Install()
 	if err != nil {
-		resp.ResponseNOK(c, msgMySQL.ErrMySQLServiceInstallMySQL, errors.Trace(err),
+		resp.ResponseNOK(c, msgMySQL.ErrMySQLServiceInstallMySQL, err,
 			installMySQL.MySQLServerParam.Version, installMySQL.Mode, jsonStr)
 		return
 	}

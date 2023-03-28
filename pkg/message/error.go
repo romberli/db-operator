@@ -65,6 +65,7 @@ const (
 	ErrNotValidFilePath                        = 400058
 	ErrOverrideConfigByCLI                     = 400059
 	ErrInitDerivedConfig                       = 400060
+	ErrSortAddrs                               = 400061
 )
 
 func initErrorMessage() {
@@ -122,5 +123,5 @@ func initErrorMessage() {
 	Messages[ErrNotValidFilePath] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidFilePath, "file path must be either unix or windows path, %s is not valid")
 	Messages[ErrOverrideConfigByCLI] = config.NewErrMessage(DefaultMessageHeader, ErrOverrideConfigByCLI, "override config by command line interface failed")
 	Messages[ErrInitDerivedConfig] = config.NewErrMessage(DefaultMessageHeader, ErrInitDerivedConfig, "init derived config failed")
-
+	Messages[ErrSortAddrs] = config.NewErrMessage(DefaultMessageHeader, ErrSortAddrs, "sort addrs failed. addrs: %v")
 }

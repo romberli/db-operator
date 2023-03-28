@@ -86,4 +86,6 @@ func (gr *GinRouter) Swagger() {
 func RegisterAll(group *gin.RouterGroup) {
 	// health
 	RegisterHealth(group)
+	// mysql
+	RegisterMySQL(group)
 }

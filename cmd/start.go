@@ -18,13 +18,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/romberli/db-operator/global"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/pingcap/errors"
 	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/global"
 	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/db-operator/router"
 	"github.com/romberli/db-operator/server"
@@ -33,6 +33,8 @@ import (
 	"github.com/romberli/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	msgrouter "github.com/romberli/db-operator/pkg/message/router"
 )
 
 const startCommand = "start"
@@ -115,14 +117,27 @@ var startCmd = &cobra.Command{
 				log.Errorf(constant.LogWithStackString, message.NewMessage(message.ErrSavePidToFile, err))
 				os.Exit(constant.DefaultAbnormalExitCode)
 			}
+
 			// init connection pool
 			err = global.InitDBOMySQLPool()
 			if err != nil {
 				log.Errorf(constant.LogWithStackString, message.NewMessage(message.ErrInitConnectionPool, err))
 				os.Exit(constant.DefaultAbnormalExitCode)
 			}
+			// init purge service
+			purgeService := global.NewPurgeServiceWithDefault()
+			go purgeService.PurgeMySQLOperationLock()
+
+			// init token auth
+			ta := router.NewTokenAuthWithGlobal()
+			tokens, err := ta.GetTokens()
+			if err != nil {
+				log.Errorf(constant.LogWithStackString, message.NewMessage(msgrouter.ErrRouterGetHandlerFunc, err))
+				os.Exit(constant.DefaultAbnormalExitCode)
+			}
 			// init router
 			r := router.NewGinRouter()
+			r.Use(ta.GetHandlerFunc(tokens))
 			r.Register()
 			// init server
 			s := server.NewServer(

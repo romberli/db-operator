@@ -89,6 +89,7 @@ var (
 	mysqlUserMonitorPass               string
 	mysqlUserDASUser                   string
 	mysqlUserDASPass                   string
+	mysqlOperationTimeout              int
 	// pmm
 	pmmServerAddr                   string
 	pmmServerUser                   string
@@ -192,6 +193,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&mysqlUserMonitorPass, "mysql:user-monitor-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default monitor password(default: %s)", config.DefaultMySQLUserMonitorPass))
 	rootCmd.PersistentFlags().StringVar(&mysqlUserDASUser, "mysql:user-das-user", constant.DefaultRandomString, fmt.Sprintf("specify the default das user(default: %s)", config.DefaultMySQLUserDASUser))
 	rootCmd.PersistentFlags().StringVar(&mysqlUserDASPass, "mysql:user-das-pass", constant.DefaultRandomString, fmt.Sprintf("specify the default das password(default: %s)", config.DefaultMySQLUserDASPass))
+	rootCmd.PersistentFlags().IntVar(&mysqlOperationTimeout, "mysql-operation-timeout", constant.DefaultRandomInt, fmt.Sprintf("specify the default mysql operation timeout(default: %d, unit: seconds)", config.DefaultMySQLOperationTimeout))
 	// pmm
 	rootCmd.PersistentFlags().StringVar(&pmmServerAddr, "pmm-server-addr", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server address(default: %s)", config.DefaultPMMServerAddr))
 	rootCmd.PersistentFlags().StringVar(&pmmServerUser, "pmm-server-user", constant.DefaultRandomString, fmt.Sprintf("specify the pmm server user(default: %s)", config.DefaultPMMServerUser))

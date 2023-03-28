@@ -96,6 +96,9 @@ const (
 	DefaultMySQLUserMonitorPass               = "pmm"
 	DefaultMySQLUserDASUser                   = "das"
 	DefaultMySQLUserDASPass                   = "das"
+	DefaultMySQLOperationTimeout              = 86400
+	MinMySQLOperationTimeout                  = 60
+	MaxMySQLOperationTimeout                  = 86400 * 7
 	// pmm
 	DefaultPMMServerAddr                   = "127.0.0.1:443"
 	DefaultPMMServerUser                   = "admin"
@@ -160,6 +163,7 @@ const (
 	MySQLUserMonitorPassKey               = "mysql.user.monitorPass"
 	MySQLUserDASUserKey                   = "mysql.user.dasUser"
 	MySQLUserDASPassKey                   = "mysql.user.dasPass"
+	MySQLOperationTimeoutKey              = "mysql.operationTimeout"
 	// pmm
 	PMMServerAddrKey                   = "pmm.server.addr"
 	PMMServerUserKey                   = "pmm.server.user"

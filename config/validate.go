@@ -526,6 +526,16 @@ func ValidateMySQL() error {
 		merr = multierror.Append(merr, errors.Trace(err))
 	}
 
+	// validate mysql.operationTimeout
+	operationTimeout, err := cast.ToIntE(viper.Get(MySQLOperationTimeoutKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	} else {
+		if operationTimeout < MinMySQLOperationTimeout || operationTimeout > MaxMySQLOperationTimeout {
+			merr = multierror.Append(merr, message.NewMessage(msgMySQL.ErrMySQLNotValidConfigMySQLOperationTimeout, MinMySQLOperationTimeout, MaxMySQLOperationTimeout, operationTimeout))
+		}
+	}
+
 	return merr.ErrorOrNil()
 }
 

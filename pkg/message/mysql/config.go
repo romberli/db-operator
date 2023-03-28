@@ -22,6 +22,7 @@ const (
 	ErrMySQLNotValidConfigMySQLParameterInnodbBufferPoolSize = 402003
 	ErrMySQLNotValidConfigMySQLParameterInnodbIOCapacity     = 402004
 	ErrMySQLNotValidConfigMySQLUser                          = 402005
+	ErrMySQLNotValidConfigMySQLOperationTimeout              = 402006
 )
 
 func initMySQLConfigDebugMessage() {
@@ -43,4 +44,6 @@ func initMySQLConfigErrorMessage() {
 		"mysql.Config: default innodb_io_capacity should be in the range [%d, %d], %d is not valid")
 	message.Messages[ErrMySQLNotValidConfigMySQLUser] = config.NewErrMessage(message.DefaultMessageHeader, ErrMySQLNotValidConfigMySQLUser,
 		"mysql.Config: %s should not be empty")
+	message.Messages[ErrMySQLNotValidConfigMySQLOperationTimeout] = config.NewErrMessage(message.DefaultMessageHeader, ErrMySQLNotValidConfigMySQLOperationTimeout,
+		"mysql.Config: operation timeout should be in the range [%d, %d], %d is not valid")
 }
