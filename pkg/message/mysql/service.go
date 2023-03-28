@@ -31,5 +31,6 @@ func initMySQLServiceInfoMessage() {
 }
 
 func initMySQLServiceErrorMessage() {
-
+	message.Messages[ErrMySQLServiceInstallMySQL] = config.NewErrMessage(message.DefaultMessageHeader, ErrMySQLServiceInstallMySQL,
+		"mysql.Service: install mysql failed. version: %s, mode: %d, addrs: %s")
 }

@@ -57,12 +57,6 @@ func Install(c *gin.Context) {
 		installMySQL.MySQLServerParam,
 		installMySQL.PMMClientParam,
 	)
-	s := mysql.NewServiceWithDefault(e)
-	err = s.Install()
-	if err != nil {
-		resp.ResponseNOK(c, msgMySQL.ErrMySQLServiceInstallMySQL, errors.Trace(err))
-		return
-	}
 
 	jsonBytes, err := json.Marshal(installMySQL.Addrs)
 	if err != nil {
@@ -70,6 +64,14 @@ func Install(c *gin.Context) {
 		return
 	}
 	jsonStr := string(jsonBytes)
+
+	s := mysql.NewServiceWithDefault(e)
+	err = s.Install()
+	if err != nil {
+		resp.ResponseNOK(c, msgMySQL.ErrMySQLServiceInstallMySQL, errors.Trace(err),
+			installMySQL.MySQLServerParam.Version, installMySQL.Mode, jsonStr)
+		return
+	}
 
 	resp.ResponseOK(c, fmt.Sprintf(installMySQLMessage, installMySQL.MySQLServerParam.Version, installMySQL.Mode, jsonStr),
 		msgMySQL.InfoMySQLServiceInstallMySQL, installMySQL.MySQLServerParam.Version, installMySQL.Mode, jsonStr)
