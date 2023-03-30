@@ -1,7 +1,16 @@
 package mysql
 
 import (
+	"github.com/romberli/go-util/common"
+	"github.com/romberli/go-util/constant"
 	"github.com/romberli/log"
+)
+
+const (
+	installOperationType = iota + 1
+	upgradeOperationType
+	removeInstanceOperationType
+	removeBinaryOperationType
 )
 
 type Service struct {
@@ -29,16 +38,23 @@ func newService(repo *DBORepo, engine *Engine) *Service {
 
 // Install installs the mysql to the target hosts
 func (s *Service) Install() error {
-	err := s.DBORepo.GetLock(s.Engine.Addrs)
+	// init operation id
+	addrs := common.ConvertStringSliceToString(s.Engine.Addrs, constant.CommaString)
+	operationID, err := s.DBORepo.InitOperationHistory(installOperationType, addrs)
+	if err != nil {
+		return err
+	}
+	// get lock
+	err = s.DBORepo.GetLock(operationID, s.Engine.Addrs)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		err = s.DBORepo.ReleaseLock(s.Engine.Addrs)
+		err = s.DBORepo.ReleaseLock(operationID)
 		if err != nil {
-			log.Errorf("mysql Service.Install(): release lock failed.\n%+v", err)
+			log.Errorf(constant.LogWithStackString, err)
 		}
 	}()
-
-	return s.Engine.Install()
+	// install mysql
+	return s.Engine.Install(operationID)
 }

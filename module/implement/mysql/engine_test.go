@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
 	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/global"
 	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"github.com/romberli/db-operator/module/implement/mysql/parameter"
 	"github.com/romberli/go-util/constant"
@@ -20,6 +21,11 @@ import (
 )
 
 const (
+	testDBDBOMySQLAddr = "192.168.137.11:3306"
+	testDBDBOMySQLName = "dbo"
+	testDBDBOMySQLUser = "root"
+	testDBDBOMySQLPass = "root"
+
 	testMySQLInstallationPackageDir = "/data/software/mysql"
 
 	testHostIP1         = "192.168.137.21"
@@ -102,6 +108,7 @@ var (
 
 func init() {
 	testInitViper()
+	testInitDBOMySQLPool()
 	testServerID = testInitServerID(testHostIP1, testPortNum1)
 	testMySQLServer = testInitMySQLServer(testHostIP1, testPortNum1, testServerID)
 	testPMMClient = testInitPMMClient()
@@ -112,6 +119,19 @@ func init() {
 }
 
 func testInitViper() {
+	// set global
+	viper.Set(config.DBDBOMySQLAddrKey, testDBDBOMySQLAddr)
+	viper.Set(config.DBDBOMySQLNameKey, testDBDBOMySQLName)
+	viper.Set(config.DBDBOMySQLUserKey, testDBDBOMySQLUser)
+	viper.Set(config.DBDBOMySQLPassKey, testDBDBOMySQLPass)
+	viper.Set(config.DBPoolMaxConnectionsKey, mysql.DefaultMaxConnections)
+	viper.Set(config.DBPoolInitConnectionsKey, mysql.DefaultInitConnections)
+	viper.Set(config.DBPoolMaxIdleConnectionsKey, mysql.DefaultMaxIdleConnections)
+	viper.Set(config.DBPoolMaxIdleTimeKey, mysql.DefaultMaxIdleTime)
+	viper.Set(config.DBPoolMaxWaitTimeKey, mysql.DefaultMaxWaitTime)
+	viper.Set(config.DBPoolMaxRetryCountKey, mysql.DefaultMaxRetryCount)
+	viper.Set(config.DBPoolKeepAliveIntervalKey, mysql.DefaultKeepAliveInterval)
+
 	viper.Set(config.MySQLInstallationPackageDirKey, testMySQLInstallationPackageDir)
 	viper.Set(config.MySQLUserOSUserKey, testOSUser)
 	viper.Set(config.MySQLUserOSPassKey, testOSPass)
@@ -121,6 +141,15 @@ func testInitViper() {
 	viper.Set(config.PMMServerUserKey, testPMMServerUser)
 	viper.Set(config.PMMServerPassKey, testPMMServerPass)
 	viper.Set(config.PMMClientVersionKey, testPMMClientVersion)
+}
+
+func testInitDBOMySQLPool() {
+	if global.DBOMySQLPool == nil {
+		err := global.InitDBOMySQLPool()
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func testInitServerID(hostIP string, portNum int) int {
@@ -184,10 +213,15 @@ func testInitInstance(addrs []string) error {
 
 	for i, addr := range addrs {
 		var (
+			isSource   bool
 			hostIP     string
 			portNumStr string
 			portNum    int
 		)
+
+		if i == constant.ZeroInt {
+			isSource = true
+		}
 
 		hostIP, portNumStr, err = net.SplitHostPort(addr)
 		if err != nil {
@@ -203,18 +237,8 @@ func testInitInstance(addrs []string) error {
 		// set MySQL Sever Parameter
 		testServerID = testInitServerID(hostIP, portNum)
 		testConn = testInitSSHConn(hostIP)
-		testOSExecutor = testInitOSExecutor()
 		testMySQLServer = testInitMySQLServer(hostIP, portNum, testServerID)
-		err = testMySQLServer.InitWithHostInfo(hostIP, portNum)
-		if err != nil {
-			return err
-		}
-
-		testEngine.MySQLServer = testMySQLServer
-		testOSExecutor.mysqlServer = testMySQLServer
-
-		// init os executor
-		err = testEngine.InitOSExecutor()
+		err = testMySQLServer.InitWithHostInfo(hostIP, portNum, isSource)
 		if err != nil {
 			return err
 		}
@@ -223,12 +247,6 @@ func testInitInstance(addrs []string) error {
 		err = testClearMySQL()
 		if err != nil {
 			return err
-		}
-
-		//
-		if i == constant.ZeroInt {
-			testEngine.MySQLServer.SetSemiSyncSourceEnabled(constant.OneInt)
-			testEngine.MySQLServer.SetSemiSyncReplicaEnabled(constant.ZeroInt)
 		}
 
 		// init os
@@ -247,14 +265,16 @@ func testInitInstance(addrs []string) error {
 }
 
 func TestEngine_All(t *testing.T) {
+	TestEngine_InitOSExecutor(t)
+	TestEngine_Install(t)
+	TestEngine_InstallSingeInstance(t)
 	TestEngine_InitMySQLInstance(t)
 	TestEngine_ConfigureReplication(t)
 	TestEngine_InitPMMClient(t)
 	TestEngine_ConfigureGroupReplication(t)
-	TestEngine_Install(t)
 }
 
-func TestEngine_InitSSHConn(t *testing.T) {
+func TestEngine_InitOSExecutor(t *testing.T) {
 	asst := assert.New(t)
 
 	err := testEngine.InitOSExecutor()
@@ -263,6 +283,34 @@ func TestEngine_InitSSHConn(t *testing.T) {
 	output, err := testEngine.ose.Conn.ExecuteCommand(testDateCommand)
 	asst.Nil(err, "test InitOSExecutor() failed")
 	t.Logf("output: %s", output)
+}
+
+func TestEngine_Install(t *testing.T) {
+	asst := assert.New(t)
+
+	// clear previous mysql server
+	err := testClearMySQL(testAddrs...)
+	asst.Nil(err, "test InstallSingleInstance() failed")
+	// install single instance
+	err = testEngine.Install(1)
+	asst.Nil(err, "test InstallSingleInstance() failed")
+	// clear mysql server
+	// err = testClearMySQL()
+	asst.Nil(err, "test InstallSingleInstance() failed")
+}
+
+func TestEngine_InstallSingeInstance(t *testing.T) {
+	asst := assert.New(t)
+
+	// clear previous mysql server
+	err := testClearMySQL()
+	asst.Nil(err, "test InstallSingleInstance() failed")
+	// install single instance
+	err = testEngine.InstallSingleInstance(testHostIP1, testPortNum1, true)
+	asst.Nil(err, "test InstallSingleInstance() failed")
+	// clear mysql server
+	//err = testClearMySQL()
+	asst.Nil(err, "test InstallSingleInstance() failed")
 }
 
 func TestEngine_InitMySQLInstance(t *testing.T) {
@@ -300,21 +348,21 @@ func TestEngine_ConfigureReplication(t *testing.T) {
 	asst := assert.New(t)
 
 	err := testInitInstance(testAddrs)
-	asst.Nil(err, "test ConfigureReplication() failed")
+	asst.Nil(err, "test ConfigureReplica() failed")
 
-	err = testEngine.ConfigureReplication(testAddr2, testHostIP1, testPortNum1)
-	asst.Nil(err, "test ConfigureReplication() failed")
+	err = testEngine.ConfigureReplica(testAddr2, testHostIP1, testPortNum1)
+	asst.Nil(err, "test ConfigureReplica() failed")
 	// create connection
 	conn, err := mysql.NewConn(testAddr2, constant.EmptyString, testClientUser, testClientPass)
-	asst.Nil(err, "test ConfigureReplication() failed")
+	asst.Nil(err, "test ConfigureReplica() failed")
 	defer func() {
 		err = conn.Close()
-		asst.Nil(err, "test ConfigureReplication() failed")
+		asst.Nil(err, "test ConfigureReplica() failed")
 	}()
 	// check version
 	result, err := conn.Conn.Execute(testCheckSlaveStatusSQL)
-	asst.Nil(err, "test ConfigureReplication() failed")
-	asst.True(result.RowNumber() == 1, "test ConfigureReplication() failed")
+	asst.Nil(err, "test ConfigureReplica() failed")
+	asst.True(result.RowNumber() == 1, "test ConfigureReplica() failed")
 }
 
 func TestEngine_InitPMMClient(t *testing.T) {
@@ -322,9 +370,5 @@ func TestEngine_InitPMMClient(t *testing.T) {
 }
 
 func TestEngine_ConfigureGroupReplication(t *testing.T) {
-
-}
-
-func TestEngine_Install(t *testing.T) {
 
 }

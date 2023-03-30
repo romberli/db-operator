@@ -18,7 +18,8 @@ const (
 	InfoMySQLServiceInstallMySQL = 202101
 
 	// error
-	ErrMySQLServiceInstallMySQL = 402101
+	ErrMySQLServiceInstallMySQL           = 402101
+	ErrMySQLServiceUpdateOperationHistory = 402102
 )
 
 func initMySQLServiceDebugMessage() {
@@ -33,4 +34,6 @@ func initMySQLServiceInfoMessage() {
 func initMySQLServiceErrorMessage() {
 	message.Messages[ErrMySQLServiceInstallMySQL] = config.NewErrMessage(message.DefaultMessageHeader, ErrMySQLServiceInstallMySQL,
 		"mysql.Service: install mysql failed. version: %s, mode: %d, addrs: %s")
+	message.Messages[ErrMySQLServiceUpdateOperationHistory] = config.NewErrMessage(message.DefaultMessageHeader, ErrMySQLServiceUpdateOperationHistory,
+		"mysql.Service: update operation history failed. operationID: %d, status: %d")
 }

@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"testing"
 
 	"github.com/romberli/db-operator/pkg/util/ssh"
@@ -48,32 +50,51 @@ func testInitOSExecutor() *OSExecutor {
 	return ose
 }
 
-func testClearMySQL() error {
-	// kill mysql server process
-	pidList, err := testOSExecutor.GetMySQLPIDList()
-	if err != nil {
-		return err
-	}
-	for _, pid := range pidList {
-		cmd := fmt.Sprintf(testKillMySQLDCommand, pid)
-		err = testOSExecutor.Conn.ExecuteCommandWithoutOutput(cmd)
+func testClearMySQL(addrs ...string) error {
+	for _, addr := range addrs {
+		hostIP, portNumStr, err := net.SplitHostPort(addr)
 		if err != nil {
 			return err
 		}
-	}
 
-	// remove the mysql server files
-	err = testOSExecutor.Conn.RemoveAll(testOSExecutor.mysqlServer.BinaryDirBase)
-	if err != nil {
-		return err
-	}
-	err = testOSExecutor.Conn.RemoveAll(testOSExecutor.mysqlServer.DataDirBase)
-	if err != nil {
-		return err
-	}
-	err = testOSExecutor.Conn.RemoveAll(testOSExecutor.mysqlServer.LogDirBase)
-	if err != nil {
-		return err
+		portNum, err := strconv.Atoi(portNumStr)
+		if err != nil {
+			return err
+		}
+
+		testConn = testInitSSHConn(testHostIP1)
+		testOSExecutor = testInitOSExecutor()
+		err = testOSExecutor.mysqlServer.InitWithHostInfo(hostIP, portNum, false)
+		if err != nil {
+			return err
+		}
+
+		// kill mysql server process
+		pidList, err := testOSExecutor.GetMySQLPIDList()
+		if err != nil {
+			return err
+		}
+		for _, pid := range pidList {
+			cmd := fmt.Sprintf(testKillMySQLDCommand, pid)
+			err = testOSExecutor.Conn.ExecuteCommandWithoutOutput(cmd)
+			if err != nil {
+				return err
+			}
+		}
+
+		// remove the mysql server files
+		err = testOSExecutor.Conn.RemoveAll(testOSExecutor.mysqlServer.BinaryDirBase)
+		if err != nil {
+			return err
+		}
+		err = testOSExecutor.Conn.RemoveAll(testOSExecutor.mysqlServer.DataDirBase)
+		if err != nil {
+			return err
+		}
+		err = testOSExecutor.Conn.RemoveAll(testOSExecutor.mysqlServer.LogDirBase)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

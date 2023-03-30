@@ -23,8 +23,8 @@ const (
 	DefaultDataDirBaseName = "/data/mysql/data"
 	DefaultLogDirBaseName  = "/data/mysql/data"
 
-	DefaultSemiSyncSourceEnabled           = 0
-	DefaultSemiSyncReplicaEnabled          = 1
+	DefaultSemiSyncEnabled                 = 1
+	DefaultSemiSyncDisabled                = 0
 	DefaultSemiSyncSourceTimeout           = 10000
 	DefaultGroupReplicationConsistency     = "eventual"
 	DefaultGroupReplicationFlowControlMode = "disabled"
@@ -150,8 +150,8 @@ func NewMySQLServerWithDefault() *MySQLServer {
 		fmt.Sprintf(DefaultBinaryDirBaseTemplate, viper.GetString(config.MySQLVersionKey)),
 		DefaultDataDirBaseName,
 		DefaultLogDirBaseName,
-		DefaultSemiSyncSourceEnabled,
-		DefaultSemiSyncReplicaEnabled,
+		DefaultSemiSyncDisabled,
+		DefaultSemiSyncEnabled,
 		DefaultSemiSyncSourceTimeout,
 		DefaultGroupReplicationConsistency,
 		DefaultGroupReplicationFlowControlMode,
@@ -262,13 +262,18 @@ func (ms *MySQLServer) SetSemiSyncReplicaEnabled(semiSyncReplicaEnabled int) {
 	ms.SemiSyncReplicaEnabled = semiSyncReplicaEnabled
 }
 
-// InitWithHostInfo resets the MySQLServer with given host info
-func (ms *MySQLServer) InitWithHostInfo(hostIP string, portNum int) error {
+// InitWithHostInfo initialize the MySQLServer with given host info
+func (ms *MySQLServer) InitWithHostInfo(hostIP string, portNum int, isSource bool) error {
 	ms.HostIP = hostIP
 	ms.PortNum = portNum
 
 	ms.DataDirBase = fmt.Sprintf(dirBaseTemplate, ms.DataDirBaseName, portNum)
 	ms.LogDirBase = fmt.Sprintf(dirBaseTemplate, ms.LogDirBaseName, portNum)
+
+	if isSource {
+		ms.SetSemiSyncSourceEnabled(DefaultSemiSyncEnabled)
+		ms.SetSemiSyncReplicaEnabled(DefaultSemiSyncDisabled)
+	}
 
 	ipList := strings.Split(hostIP, constant.DotString)
 	serverIDStr := fmt.Sprintf(DefaultServerIDTemplate, portNum, ipList[constant.TwoInt], ipList[constant.ThreeInt])

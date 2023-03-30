@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"fmt"
+	"github.com/romberli/db-operator/pkg/message"
 	"net"
 	"os"
 	"path/filepath"
@@ -20,9 +21,17 @@ import (
 	"github.com/romberli/go-util/middleware/mysql"
 	"github.com/romberli/log"
 	"github.com/spf13/viper"
+
+	msgMySQL "github.com/romberli/db-operator/pkg/message/mysql"
 )
 
 const (
+	operationStatusRunning             = 1
+	operationStatusSuccess             = 2
+	operationStatusFailed              = 3
+	installSuccessMessage              = "install mysql server completed."
+	configureReplicationSuccessMessage = "configure replication completed"
+
 	defaultUseSudo = true
 
 	addrTemplate                         = "%s:%d"
@@ -94,6 +103,129 @@ func newEngine(dboRepo *DBORepo, mysqlVersion *version.Version, m mode.Mode, add
 	}
 }
 
+// Install installs mysql to the hosts
+func (e *Engine) Install(operationID int) error {
+	err := linux.SortAddrs(e.Addrs)
+	if err != nil {
+		return err
+	}
+
+	var (
+		sourceHostIP  string
+		sourcePortNum int
+	)
+
+	for i, addr := range e.Addrs {
+		var (
+			isSource          bool
+			hostIP            string
+			portNumStr        string
+			portNum           int
+			operationDetailID int
+		)
+
+		hostIP, portNumStr, err = net.SplitHostPort(addr)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		if hostIP == constant.EmptyString || portNumStr == constant.EmptyString {
+			return errors.Errorf("addr must be formatted as host:port, %s is invalid", addr)
+		}
+		portNum, err = strconv.Atoi(portNumStr)
+		if err != nil {
+			return errors.Trace(err)
+		}
+
+		if i == constant.ZeroInt {
+			isSource = true
+			sourceHostIP = hostIP
+			sourcePortNum = portNum
+		}
+
+		// init operation detail
+		operationDetailID, err = e.dboRepo.InitOperationDetail(operationID, e.MySQLServer.HostIP, e.MySQLServer.PortNum)
+		if err != nil {
+			return err
+		}
+		// install single instance
+		err = e.InstallSingleInstance(hostIP, portNum, isSource)
+		if err != nil {
+			updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, operationStatusFailed, err.Error())
+			if updateErr != nil {
+				log.Errorf(constant.LogWithStackString, message.NewMessage(msgMySQL.ErrMySQLEngineUpdateOperationDetail,
+					updateErr, operationID, operationDetailID, hostIP, portNum, operationStatusFailed))
+			}
+
+			return err
+		}
+
+		if !isSource && e.Mode == mode.AsyncReplication || e.Mode == mode.SemiSyncReplication {
+			// configure mysql replica
+			err = e.ConfigureReplica(addr, sourceHostIP, sourcePortNum)
+			if err != nil {
+				updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, operationStatusFailed, err.Error())
+				if updateErr != nil {
+					log.Errorf(constant.LogWithStackString, message.NewMessage(msgMySQL.ErrMySQLEngineUpdateOperationDetail,
+						updateErr, operationID, operationDetailID, hostIP, portNum, operationStatusFailed))
+				}
+
+				return err
+			}
+		}
+
+		updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, operationStatusSuccess, installSuccessMessage)
+		if updateErr != nil {
+			log.Errorf(constant.LogWithStackString, message.NewMessage(msgMySQL.ErrMySQLEngineUpdateOperationDetail,
+				updateErr, operationID, operationDetailID, hostIP, portNum, operationStatusSuccess))
+		}
+
+		log.Infof(message.NewMessage(msgMySQL.InfoMySQLEngineInitInstance, operationID, operationDetailID, hostIP, portNum).Error())
+	}
+
+	if e.Mode == mode.GroupReplication {
+		// configure mysql group replication
+		return e.ConfigureGroupReplication()
+	}
+
+	return nil
+}
+
+// InstallSingleInstance installs the single instance
+func (e *Engine) InstallSingleInstance(hostIP string, portNum int, isSource bool) error {
+	// reset MySQL Sever Parameter
+	err := e.MySQLServer.InitWithHostInfo(hostIP, portNum, isSource)
+	if err != nil {
+		return err
+	}
+	// init os
+	err = e.InitOS()
+	if err != nil {
+		return err
+	}
+	// init mysql instance
+	err = e.InitMySQLInstance()
+	if err != nil {
+		return err
+	}
+	// init pmm client
+	err = e.InitPMMClient()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InitOS initializes the os
+func (e *Engine) InitOS() error {
+	err := e.InitOSExecutor()
+	if err != nil {
+		return err
+	}
+
+	return e.ose.Init()
+}
+
 // InitOSExecutor initializes the ssh connection
 func (e *Engine) InitOSExecutor() error {
 	sshConn, err := linux.NewSSHConn(
@@ -110,101 +242,6 @@ func (e *Engine) InitOSExecutor() error {
 	e.ose = NewOSExecutor(ssh.NewConn(sshConn), e.mysqlVersion, e.MySQLServer)
 
 	return nil
-}
-
-// Install installs mysql to the hosts
-func (e *Engine) Install() error {
-	err := linux.SortAddrs(e.Addrs)
-	if err != nil {
-		return err
-	}
-
-	var (
-		sourceHostIP  string
-		sourcePortNum int
-	)
-
-	for i, addr := range e.Addrs {
-		var (
-			isSource   bool
-			hostIP     string
-			portNumStr string
-			portNum    int
-		)
-
-		hostIP, portNumStr, err = net.SplitHostPort(addr)
-		if err != nil {
-			return errors.Trace(err)
-		}
-		if hostIP == constant.EmptyString || portNumStr == constant.EmptyString {
-			return errors.Errorf("addr must be formatted as host:port, %s is invalid", addr)
-		}
-		portNum, err = strconv.Atoi(portNumStr)
-		if err != nil {
-			return errors.Trace(err)
-		}
-
-		// reset MySQL Sever Parameter
-		err = e.MySQLServer.InitWithHostInfo(hostIP, portNum)
-		if err != nil {
-			return err
-		}
-
-		// init ssh conn
-		err = e.InitOSExecutor()
-		if err != nil {
-			return err
-		}
-
-		if i == constant.ZeroInt {
-			isSource = true
-			sourceHostIP = hostIP
-			sourcePortNum = portNum
-			e.MySQLServer.SetSemiSyncSourceEnabled(constant.OneInt)
-			e.MySQLServer.SetSemiSyncReplicaEnabled(constant.ZeroInt)
-		}
-
-		// init os
-		err = e.InitOS()
-		if err != nil {
-			return err
-		}
-		// init mysql instance
-		err = e.InitMySQLInstance()
-		if err != nil {
-			return err
-		}
-		// init pmm client
-		err = e.InitPMMClient()
-		if err != nil {
-			return err
-		}
-
-		if !isSource && e.Mode == mode.AsyncReplication || e.Mode == mode.SemiSyncReplication {
-			// configure mysql replica
-			err = e.ConfigureReplication(addr, sourceHostIP, sourcePortNum)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	if e.Mode == mode.GroupReplication {
-		// configure mysql group replication
-		return e.ConfigureGroupReplication()
-	}
-
-	return nil
-}
-
-// InitOS initializes the os
-func (e *Engine) InitOS() error {
-	err := e.InitOSExecutor()
-	if err != nil {
-		return err
-	}
-
-	return e.ose.Init()
 }
 
 // InitMySQLInstance initializes the mysql instance
@@ -260,6 +297,110 @@ func (e *Engine) InitMySQLInstance() error {
 	}
 
 	return nil
+}
+
+// ConfigureReplica configures the replication
+func (e *Engine) ConfigureReplica(addr, sourceHostIP string, sourcePortNum int) error {
+	if addr == fmt.Sprintf(addrTemplate, sourceHostIP, sourcePortNum) {
+		// this is the source node, do nothing
+		return nil
+	}
+
+	conn, err := mysql.NewConn(addr, constant.EmptyString, constant.DefaultRootUserName, e.MySQLServer.RootPass)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			log.Errorf("Engine.ConfigureReplica(): close mysql connection failed. error:\n%+v", err)
+		}
+	}()
+
+	sql := fmt.Sprintf(changeMasterSQLTemplate, sourceHostIP, sourcePortNum, e.MySQLServer.ReplicationUser, e.MySQLServer.ReplicationPass)
+	_, err = conn.Execute(sql)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Execute(startReplicaSQL)
+	if err != nil {
+		return err
+	}
+
+	var status string
+	// check io thread
+	for i := constant.ZeroInt; i < maxRetryCount; i++ {
+		result, err := conn.GetReplicationSlavesStatus()
+		if err != nil {
+			return err
+		}
+
+		status, err = result.GetStringByName(constant.ZeroInt, SlaveIOThreadRunningField)
+		if err != nil {
+			return err
+		}
+		if status != IsRunningValue {
+			log.Warnf("slave io thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+			time.Sleep(retryInterval)
+			continue
+		}
+		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
+		if err != nil {
+			return err
+		}
+		if status == IsRunningValue {
+			break
+		}
+
+		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		time.Sleep(retryInterval)
+		continue
+	}
+
+	if status != IsRunningValue {
+		return errors.Errorf("slave io thread is not running")
+	}
+
+	// check sql thread
+	for i := constant.ZeroInt; i < maxRetryCount; i++ {
+		result, err := conn.GetReplicationSlavesStatus()
+		if err != nil {
+			return err
+		}
+
+		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
+		if err != nil {
+			return err
+		}
+
+		if status == IsRunningValue {
+			break
+		}
+
+		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		time.Sleep(retryInterval)
+		continue
+	}
+
+	if status != IsRunningValue {
+		return errors.Errorf("slave sql thread is not running")
+	}
+
+	return nil
+}
+
+// InitPMMClient initializes the pmm client
+func (e *Engine) InitPMMClient() error {
+	pmmExecutor := NewPMMExecutor(e.ose.Conn, e.MySQLServer.HostIP, e.MySQLServer.PortNum, e.PMMClient)
+
+	return pmmExecutor.Init()
+}
+
+// ConfigureGroupReplication configures the group replication
+func (e *Engine) ConfigureGroupReplication() error {
+	// TODO: implement this
+	return errors.Errorf("group replication has not been implemented")
 }
 
 // initMySQLInstance initializes the mysql instance
@@ -427,13 +568,6 @@ func (e *Engine) checkInstanceWithMySQLDMulti() (bool, error) {
 	return false, nil
 }
 
-// InitPMMClient initializes the pmm client
-func (e *Engine) InitPMMClient() error {
-	pmmExecutor := NewPMMExecutor(e.ose.Conn, e.MySQLServer.HostIP, e.MySQLServer.PortNum, e.PMMClient)
-
-	return pmmExecutor.Init()
-}
-
 // prepareInitConfigFile prepares mysql config file for initializing mysql instance
 func (e *Engine) prepareInitConfigFile() error {
 	configBytes, err := e.MySQLServer.GetConfig(e.mysqlVersion, e.Mode)
@@ -510,100 +644,4 @@ func (e *Engine) getSourceNode() (string, int, error) {
 	}
 
 	return hostIP, portNum, nil
-}
-
-// ConfigureReplication configures the replication
-func (e *Engine) ConfigureReplication(addr, sourceHostIP string, sourcePortNum int) error {
-	if addr == fmt.Sprintf(addrTemplate, sourceHostIP, sourcePortNum) {
-		// this is the source node, do nothing
-		return nil
-	}
-
-	conn, err := mysql.NewConn(addr, constant.EmptyString, constant.DefaultRootUserName, e.MySQLServer.RootPass)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			log.Errorf("Engine.ConfigureReplication(): close mysql connection failed. error:\n%+v", err)
-		}
-	}()
-
-	sql := fmt.Sprintf(changeMasterSQLTemplate, sourceHostIP, sourcePortNum, e.MySQLServer.ReplicationUser, e.MySQLServer.ReplicationPass)
-	_, err = conn.Execute(sql)
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Execute(startReplicaSQL)
-	if err != nil {
-		return err
-	}
-
-	var status string
-	// check io thread
-	for i := constant.ZeroInt; i < maxRetryCount; i++ {
-		result, err := conn.GetReplicationSlavesStatus()
-		if err != nil {
-			return err
-		}
-
-		status, err = result.GetStringByName(constant.ZeroInt, SlaveIOThreadRunningField)
-		if err != nil {
-			return err
-		}
-		if status != IsRunningValue {
-			log.Warnf("slave io thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
-			time.Sleep(retryInterval)
-			continue
-		}
-		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
-		if err != nil {
-			return err
-		}
-		if status == IsRunningValue {
-			break
-		}
-
-		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
-		time.Sleep(retryInterval)
-		continue
-	}
-
-	if status != IsRunningValue {
-		return errors.Errorf("slave io thread is not running")
-	}
-
-	// check sql thread
-	for i := constant.ZeroInt; i < maxRetryCount; i++ {
-		result, err := conn.GetReplicationSlavesStatus()
-		if err != nil {
-			return err
-		}
-
-		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
-		if err != nil {
-			return err
-		}
-
-		if status == IsRunningValue {
-			break
-		}
-
-		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
-		time.Sleep(retryInterval)
-		continue
-	}
-
-	if status != IsRunningValue {
-		return errors.Errorf("slave sql thread is not running")
-	}
-
-	return nil
-}
-
-// ConfigureGroupReplication configures the group replication
-func (e *Engine) ConfigureGroupReplication() error {
-	return nil
 }
