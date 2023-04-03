@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"fmt"
-	"github.com/romberli/db-operator/pkg/message"
 	"net"
 	"os"
 	"path/filepath"
@@ -10,17 +9,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/romberli/db-operator/pkg/message"
+
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/config"
-	"github.com/romberli/db-operator/module/implement/mysql/mode"
-	"github.com/romberli/db-operator/module/implement/mysql/parameter"
-	"github.com/romberli/db-operator/pkg/util/ssh"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/linux"
 	"github.com/romberli/go-util/middleware/mysql"
 	"github.com/romberli/log"
 	"github.com/spf13/viper"
+
+	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/module/implement/mysql/mode"
+	"github.com/romberli/db-operator/module/implement/mysql/parameter"
+	"github.com/romberli/db-operator/pkg/util/ssh"
 
 	msgMySQL "github.com/romberli/db-operator/pkg/message/mysql"
 )
@@ -56,8 +58,9 @@ const (
 	SlaveSQLThreadRunningField = "Slave_SQL_Running"
 	IsRunningValue             = "Yes"
 
-	maxRetryCount = 5
-	retryInterval = 2 * time.Second
+	maxRetryCount        = 5
+	retryInterval        = 2 * time.Second
+	checkReplicaInterval = 5 * time.Second
 )
 
 type Engine struct {
@@ -259,13 +262,11 @@ func (e *Engine) InitMySQLInstance() error {
 			log.Errorf("mysql Engine.InitMySQLInstance(): start mysql instance failed. hostIP: %s, portNum: %d, error:\n%+v", e.MySQLServer.HostIP, e.MySQLServer.PortNum, err)
 		}
 	}()
-	time.Sleep(retryInterval)
 	// check instance status
 	err = e.checkInstanceWithPID()
 	if err != nil {
 		return err
 	}
-	// sleep for a while to wait for mysql to be ready
 	time.Sleep(retryInterval)
 	// init mysql user
 	err = e.initMySQLUser(rootPass)
@@ -283,7 +284,6 @@ func (e *Engine) InitMySQLInstance() error {
 	if err != nil {
 		return err
 	}
-	time.Sleep(retryInterval)
 	// check mysql multi instance
 	isRunning, err := e.checkInstanceWithMySQLDMulti()
 	if err != nil {
@@ -338,8 +338,8 @@ func (e *Engine) ConfigureReplica(addr, sourceHostIP string, sourcePortNum int) 
 			return err
 		}
 		if status != IsRunningValue {
-			log.Warnf("mysql Engine.ConfigureReplica(): slave io thread is not running, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
-			time.Sleep(retryInterval)
+			log.Warnf("mysql Engine.ConfigureReplica(): slave io thread is not running, will be retry soon. hostIP: %s, portNum: %d, status: %s, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, status, i)
+			time.Sleep(time.Duration(i+1) * checkReplicaInterval)
 			continue
 		}
 		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
@@ -347,44 +347,14 @@ func (e *Engine) ConfigureReplica(addr, sourceHostIP string, sourcePortNum int) 
 			return err
 		}
 		if status == IsRunningValue {
-			break
+			return nil
 		}
 
-		log.Warnf("mysql Engine.ConfigureReplica(): slave sql thread is not running, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
-		time.Sleep(retryInterval)
-		continue
+		log.Warnf("mysql Engine.ConfigureReplica(): slave sql thread is not running, will be retry soon. hostIP: %s, portNum: %d, status: %s, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, status, i)
+		time.Sleep(time.Duration(i+1) * checkReplicaInterval)
 	}
 
-	if status != IsRunningValue {
-		return errors.Errorf("slave io thread is not running")
-	}
-
-	// check sql thread
-	for i := constant.ZeroInt; i < maxRetryCount; i++ {
-		result, err := conn.GetReplicationSlavesStatus()
-		if err != nil {
-			return err
-		}
-
-		status, err = result.GetStringByName(constant.ZeroInt, SlaveSQLThreadRunningField)
-		if err != nil {
-			return err
-		}
-
-		if status == IsRunningValue {
-			break
-		}
-
-		log.Warnf("mysql Engine.ConfigureReplica(): slave sql thread is not running, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
-		time.Sleep(retryInterval)
-		continue
-	}
-
-	if status != IsRunningValue {
-		return errors.Errorf("mysql Engine.ConfigureReplica(): slave sql thread is not running")
-	}
-
-	return nil
+	return errors.Errorf("mysql Engine.ConfigureReplica(): slave io/sql thread is not running. hostIP: %s, portNum: %d, status: %s", e.MySQLServer.HostIP, e.MySQLServer.PortNum, status)
 }
 
 // InitPMMClient initializes the pmm client
@@ -440,7 +410,7 @@ func (e *Engine) checkInstanceWithPID() error {
 		}
 
 		log.Warnf("mysql Engine.checkInstanceWithPID(): no mysqld pid found, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
-		time.Sleep(retryInterval)
+		time.Sleep(time.Duration(i+1) * retryInterval)
 	}
 
 	return errors.Errorf("mysql Engine.checkInstanceWithPID(): maximum retry count of checking mysql pid exceeded, but still no mysqld pid found. hostIP: %s, portNum: %d, maxRetryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, maxRetryCount)
@@ -471,7 +441,7 @@ func (e *Engine) waitForShuttingDown() error {
 		}
 
 		log.Warnf("mysql Engine.waitForShuttingDown(): mysqld pid found, will be retry soon. hostIP: %s, portNum: %d, maxRetryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
-		time.Sleep(retryInterval)
+		time.Sleep(time.Duration(i+1) * retryInterval)
 	}
 
 	return errors.Errorf("mysql Engine.waitForShuttingDown(): maximum retry count of waiting for shutting down exceeded, but still found mysqld pid. hostIP: %s, portNum: %d, maxRetryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, maxRetryCount)
@@ -579,7 +549,7 @@ func (e *Engine) checkInstanceWithMySQLDMulti() (bool, error) {
 		}
 
 		log.Warnf("mysql Engine.checkInstanceWithMySQLDMulti(): mysqld multi instance is not running. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
-		time.Sleep(retryInterval)
+		time.Sleep(time.Duration(i+1) * retryInterval)
 		continue
 	}
 

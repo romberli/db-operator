@@ -1,8 +1,9 @@
 package mysql
 
 import (
-	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-util/config"
+
+	"github.com/romberli/db-operator/pkg/message"
 )
 
 func init() {
@@ -27,10 +28,10 @@ func initDefaultEngineDebugMessage() {
 
 func initDefaultEngineInfoMessage() {
 	message.Messages[InfoMySQLEngineInitInstance] = config.NewErrMessage(message.DefaultMessageHeader, InfoMySQLEngineInitInstance,
-		"mysql.Engine: init instance completed. operationID: %d, operationDetailID: %d, hostIP: %s, portNum: %d")
+		"mysql Engine: init instance completed. operationID: %d, operationDetailID: %d, hostIP: %s, portNum: %d")
 }
 
 func initDefaultEngineErrorMessage() {
 	message.Messages[ErrMySQLEngineUpdateOperationDetail] = config.NewErrMessage(message.DefaultMessageHeader, ErrMySQLEngineUpdateOperationDetail,
-		"mysql.Engine: update operation detail failed. operationID: %d, operationDetailID: %d, hostIP: %s, portNum: %d, status: %d")
+		"mysql Engine: update operation detail failed. operationID: %d, operationDetailID: %d, hostIP: %s, portNum: %d, status: %d")
 }
