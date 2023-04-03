@@ -23,16 +23,17 @@ import (
 	"time"
 
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/config"
-	"github.com/romberli/db-operator/global"
-	"github.com/romberli/db-operator/pkg/message"
-	"github.com/romberli/db-operator/router"
-	"github.com/romberli/db-operator/server"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/linux"
 	"github.com/romberli/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/global"
+	"github.com/romberli/db-operator/pkg/message"
+	"github.com/romberli/db-operator/router"
+	"github.com/romberli/db-operator/server"
 
 	msgrouter "github.com/romberli/db-operator/pkg/message/router"
 )
@@ -150,7 +151,7 @@ var startCmd = &cobra.Command{
 			// start server
 			go s.Run()
 
-			log.CloneStdoutLogger().Info(message.NewMessage(message.InfoServerStart, serverAddr, serverPid, serverPidFile).Error())
+			log.CloneStdoutLogger().Info(message.NewMessage(message.InfoServerStart, s.Addr(), serverPid, serverPidFile).Error())
 
 			// handle signal
 			linux.HandleSignals(serverPidFile, s.Stop)

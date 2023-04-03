@@ -17,8 +17,9 @@ limitations under the License.
 package config
 
 import (
-	"github.com/romberli/go-util/constant"
 	"net/http"
+
+	"github.com/romberli/go-util/constant"
 )
 
 // global variable
@@ -40,7 +41,7 @@ const (
 	MaxLogMaxBackups       = constant.MaxInt
 	DefaultRotateOnStartup = false
 	// server
-	DefaultServerAddr                      = "0.0.0.0:80"
+	DefaultServerAddr                      = "0.0.0.0:3160"
 	DefaultServerReadTimeout               = 5
 	DefaultServerWriteTimeout              = 10
 	MinServerReadTimeout                   = 0
@@ -52,7 +53,7 @@ const (
 	DefaultServerRouterAlternativeBodyPath = constant.EmptyString
 	DefaultServerRouterHTTPErrorCode       = http.StatusInternalServerError
 	// db
-	DefaultDBName               = "das"
+	DefaultDBName               = "dbo"
 	DefaultDBUser               = "root"
 	DefaultDBPass               = "root"
 	MinDBPoolMaxConnections     = 1

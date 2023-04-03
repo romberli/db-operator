@@ -4,12 +4,13 @@ import (
 	"strings"
 
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/global"
-	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-util/common"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/middleware"
 	"github.com/romberli/log"
+
+	"github.com/romberli/db-operator/global"
+	"github.com/romberli/db-operator/pkg/message"
 
 	msgMySQL "github.com/romberli/db-operator/pkg/message/mysql"
 )

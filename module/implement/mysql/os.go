@@ -8,12 +8,13 @@ import (
 
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/config"
-	"github.com/romberli/db-operator/module/implement/mysql/parameter"
-	"github.com/romberli/db-operator/pkg/util/ssh"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/linux"
 	"github.com/spf13/viper"
+
+	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/module/implement/mysql/parameter"
+	"github.com/romberli/db-operator/pkg/util/ssh"
 )
 
 const (

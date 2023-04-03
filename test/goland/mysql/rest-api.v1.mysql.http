@@ -1,0 +1,10 @@
+### mysql.Install
+POST http://{{baseURL}}/api/v1/mysql/install
+Content-Type: application/json
+
+{
+  "token": "{{token}}",
+  "mode": {{mode}},
+  "addrs": ["{{hostIP1}}:{{portNum1}}", "{{hostIP2}}:{{portNum2}}"],
+  "mysql_server_param": {"max_connections":  "{{maxConnections}}"}
+}

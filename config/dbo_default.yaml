@@ -6,7 +6,7 @@
 # default: None
 config: db_operator.yaml
 
-# description: specify whether das runs as daemon mode, if true, das will run as a daemon process.
+# description: specify whether db operator runs as daemon mode, if true, db operator will run as a daemon process.
 # command-line-argument: --daemon
 # type: bool
 # default: false
@@ -62,8 +62,8 @@ server:
   # description: specify the server listening address, format: host:port
   # command-line-argument: --server-addr
   # type: string
-  # default: 0.0.0.0:6090
-  addr: "0.0.0.0:6090"
+  # default: 0.0.0.0:3160
+  addr: "0.0.0.0:3160"
   # description: pid file path, if it's specified as relative path,
   # then directory of binary file will be the base directory of log file,
   # it is recommended to specify absolute path.
@@ -225,13 +225,13 @@ mysql:
     # description: specify the os user
     # command-line-argument: --mysql-user-os-user
     # type: string
-    # default: das
-    osUser: das
+    # default: root
+    osUser: root
     # description: specify the os password
     # command-line-argument: --mysql-user-os-pass
     # type: string
-    # default: das
-    osPass: das
+    # default: root
+    osPass: root
     # description: specify the default default root password
     # command-line-argument: --mysql-user-root-pass
     # type: string

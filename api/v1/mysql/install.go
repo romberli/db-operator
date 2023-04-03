@@ -7,10 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
+	"github.com/romberli/go-util/linux"
+
 	"github.com/romberli/db-operator/module/implement/mysql"
 	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/db-operator/pkg/resp"
-	"github.com/romberli/go-util/linux"
 
 	jsonmysql "github.com/romberli/db-operator/pkg/json/mysql"
 	msgMySQL "github.com/romberli/db-operator/pkg/message/mysql"
