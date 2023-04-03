@@ -26,11 +26,7 @@ import (
 )
 
 const (
-	operationStatusRunning             = 1
-	operationStatusSuccess             = 2
-	operationStatusFailed              = 3
-	installSuccessMessage              = "install mysql server completed."
-	configureReplicationSuccessMessage = "configure replication completed"
+	installSuccessMessage = "install mysql server completed."
 
 	defaultUseSudo = true
 
@@ -129,7 +125,7 @@ func (e *Engine) Install(operationID int) error {
 			return errors.Trace(err)
 		}
 		if hostIP == constant.EmptyString || portNumStr == constant.EmptyString {
-			return errors.Errorf("addr must be formatted as host:port, %s is invalid", addr)
+			return errors.Errorf("mysql Engine.Install(): addr must be formatted as host:port, %s is invalid", addr)
 		}
 		portNum, err = strconv.Atoi(portNumStr)
 		if err != nil {
@@ -150,10 +146,10 @@ func (e *Engine) Install(operationID int) error {
 		// install single instance
 		err = e.InstallSingleInstance(hostIP, portNum, isSource)
 		if err != nil {
-			updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, operationStatusFailed, err.Error())
+			updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, defaultFailedStatus, err.Error())
 			if updateErr != nil {
 				log.Errorf(constant.LogWithStackString, message.NewMessage(msgMySQL.ErrMySQLEngineUpdateOperationDetail,
-					updateErr, operationID, operationDetailID, hostIP, portNum, operationStatusFailed))
+					updateErr, operationID, operationDetailID, hostIP, portNum, defaultFailedStatus))
 			}
 
 			return err
@@ -163,20 +159,20 @@ func (e *Engine) Install(operationID int) error {
 			// configure mysql replica
 			err = e.ConfigureReplica(addr, sourceHostIP, sourcePortNum)
 			if err != nil {
-				updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, operationStatusFailed, err.Error())
+				updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, defaultFailedStatus, err.Error())
 				if updateErr != nil {
 					log.Errorf(constant.LogWithStackString, message.NewMessage(msgMySQL.ErrMySQLEngineUpdateOperationDetail,
-						updateErr, operationID, operationDetailID, hostIP, portNum, operationStatusFailed))
+						updateErr, operationID, operationDetailID, hostIP, portNum, defaultFailedStatus))
 				}
 
 				return err
 			}
 		}
 
-		updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, operationStatusSuccess, installSuccessMessage)
+		updateErr := e.dboRepo.UpdateOperationDetail(operationDetailID, defaultSuccessStatus, installSuccessMessage)
 		if updateErr != nil {
 			log.Errorf(constant.LogWithStackString, message.NewMessage(msgMySQL.ErrMySQLEngineUpdateOperationDetail,
-				updateErr, operationID, operationDetailID, hostIP, portNum, operationStatusSuccess))
+				updateErr, operationID, operationDetailID, hostIP, portNum, defaultSuccessStatus))
 		}
 
 		log.Infof(message.NewMessage(msgMySQL.InfoMySQLEngineInitInstance, operationID, operationDetailID, hostIP, portNum).Error())
@@ -260,7 +256,7 @@ func (e *Engine) InitMySQLInstance() error {
 	go func() {
 		err = e.startInstanceWithMySQLD()
 		if err != nil {
-			log.Errorf("start mysql instance failed. error:\n%+v", err)
+			log.Errorf("mysql Engine.InitMySQLInstance(): start mysql instance failed. hostIP: %s, portNum: %d, error:\n%+v", e.MySQLServer.HostIP, e.MySQLServer.PortNum, err)
 		}
 	}()
 	time.Sleep(retryInterval)
@@ -281,6 +277,7 @@ func (e *Engine) InitMySQLInstance() error {
 	if err != nil {
 		return err
 	}
+	err = e.waitForShuttingDown()
 	// start mysql multi instance
 	err = e.startInstanceWithMySQLDMulti()
 	if err != nil {
@@ -293,7 +290,7 @@ func (e *Engine) InitMySQLInstance() error {
 		return err
 	}
 	if !isRunning {
-		return errors.Errorf("mysql multi instance is not running. port_num: %d", e.MySQLServer.PortNum)
+		return errors.Errorf("mysql Engine.InitMySQLInstance(): mysql multi instance is not running. hostIP: %s, portNum: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum)
 	}
 
 	return nil
@@ -313,7 +310,7 @@ func (e *Engine) ConfigureReplica(addr, sourceHostIP string, sourcePortNum int) 
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Errorf("Engine.ConfigureReplica(): close mysql connection failed. error:\n%+v", err)
+			log.Errorf("mysql Engine.ConfigureReplica(): close mysql connection failed. error:\n%+v", err)
 		}
 	}()
 
@@ -341,7 +338,7 @@ func (e *Engine) ConfigureReplica(addr, sourceHostIP string, sourcePortNum int) 
 			return err
 		}
 		if status != IsRunningValue {
-			log.Warnf("slave io thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+			log.Warnf("mysql Engine.ConfigureReplica(): slave io thread is not running, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
 			time.Sleep(retryInterval)
 			continue
 		}
@@ -353,7 +350,7 @@ func (e *Engine) ConfigureReplica(addr, sourceHostIP string, sourcePortNum int) 
 			break
 		}
 
-		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		log.Warnf("mysql Engine.ConfigureReplica(): slave sql thread is not running, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
 		time.Sleep(retryInterval)
 		continue
 	}
@@ -378,13 +375,13 @@ func (e *Engine) ConfigureReplica(addr, sourceHostIP string, sourcePortNum int) 
 			break
 		}
 
-		log.Warnf("slave sql thread is not running, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		log.Warnf("mysql Engine.ConfigureReplica(): slave sql thread is not running, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
 		time.Sleep(retryInterval)
 		continue
 	}
 
 	if status != IsRunningValue {
-		return errors.Errorf("slave sql thread is not running")
+		return errors.Errorf("mysql Engine.ConfigureReplica(): slave sql thread is not running")
 	}
 
 	return nil
@@ -400,7 +397,7 @@ func (e *Engine) InitPMMClient() error {
 // ConfigureGroupReplication configures the group replication
 func (e *Engine) ConfigureGroupReplication() error {
 	// TODO: implement this
-	return errors.Errorf("group replication has not been implemented")
+	return errors.Errorf("mysql Engine.ConfigureGroupReplication(): group replication has not been implemented")
 }
 
 // initMySQLInstance initializes the mysql instance
@@ -411,7 +408,8 @@ func (e *Engine) initMySQLInstance() (string, error) {
 		return constant.EmptyString, err
 	}
 	// init mysql instance
-	cmd := fmt.Sprintf(initMySQLInstanceCommandTemplate, e.MySQLServer.BinaryDirBase, e.MySQLServer.PortNum, e.MySQLServer.BinaryDirBase, e.MySQLServer.DataDirBase, defaultMySQLUser)
+	cmd := fmt.Sprintf(initMySQLInstanceCommandTemplate, e.MySQLServer.BinaryDirBase,
+		e.MySQLServer.PortNum, e.MySQLServer.BinaryDirBase, e.MySQLServer.DataDirBase, defaultMySQLUser)
 	err = e.ose.Conn.ExecuteCommandWithoutOutput(cmd)
 	if err != nil {
 		return constant.EmptyString, err
@@ -423,7 +421,8 @@ func (e *Engine) initMySQLInstance() (string, error) {
 
 // startInstanceWithMySQLD starts the instance with mysqld
 func (e *Engine) startInstanceWithMySQLD() error {
-	cmd := fmt.Sprintf(startSingleInstanceCommandTemplate, e.MySQLServer.BinaryDirBase, e.MySQLServer.PortNum, e.MySQLServer.BinaryDirBase, e.MySQLServer.DataDirBase, defaultMySQLUser)
+	cmd := fmt.Sprintf(startSingleInstanceCommandTemplate, e.MySQLServer.BinaryDirBase, e.MySQLServer.PortNum,
+		e.MySQLServer.BinaryDirBase, e.MySQLServer.DataDirBase, defaultMySQLUser)
 
 	return e.ose.Conn.ExecuteCommandWithoutOutput(cmd)
 }
@@ -440,11 +439,11 @@ func (e *Engine) checkInstanceWithPID() error {
 			return nil
 		}
 
-		log.Warnf("no mysqld pid found, will be retry soon. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		log.Warnf("mysql Engine.checkInstanceWithPID(): no mysqld pid found, will be retry soon. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
 		time.Sleep(retryInterval)
 	}
 
-	return errors.Errorf("maximum retry count of checking mysql pid exceeded, but still no mysqld pid found. port_num: %d, max_retry_count: %d", e.MySQLServer.PortNum, maxRetryCount)
+	return errors.Errorf("mysql Engine.checkInstanceWithPID(): maximum retry count of checking mysql pid exceeded, but still no mysqld pid found. hostIP: %s, portNum: %d, maxRetryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, maxRetryCount)
 }
 
 // initMySQLUser initializes the user
@@ -457,6 +456,25 @@ func (e *Engine) initMySQLUser(rootPass string) error {
 	command := fmt.Sprintf(initMySQLUserCommandTemplate, e.MySQLServer.BinaryDirBase, rootPass, e.MySQLServer.DataDirBase, sql)
 
 	return e.ose.Conn.ExecuteCommandWithoutOutput(command)
+}
+
+// waitForShuttingDown waits for the instance to shut down
+func (e *Engine) waitForShuttingDown() error {
+	for i := constant.ZeroInt; i < maxRetryCount; i++ {
+		pidList, err := e.ose.GetMySQLPIDList()
+		if err != nil {
+			return err
+		}
+
+		if len(pidList) == constant.ZeroInt {
+			return nil
+		}
+
+		log.Warnf("mysql Engine.waitForShuttingDown(): mysqld pid found, will be retry soon. hostIP: %s, portNum: %d, maxRetryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
+		time.Sleep(retryInterval)
+	}
+
+	return errors.Errorf("mysql Engine.waitForShuttingDown(): maximum retry count of waiting for shutting down exceeded, but still found mysqld pid. hostIP: %s, portNum: %d, maxRetryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, maxRetryCount)
 }
 
 // prepareMultiInstanceConfigFile prepares mysql config file
@@ -493,7 +511,7 @@ func (e *Engine) prepareMultiInstanceConfigFile() error {
 
 	if strings.Contains(existingContent, mysqldSingleInstanceSectionTemplate) {
 		// mysqld section exists
-		return errors.New("mysqld section exists, db operator does not support converting the single instance to multi instance")
+		return errors.New("mysql Engine.prepareMultiInstanceConfigFile(): mysqld section exists, db operator does not support converting the single instance to multi instance")
 	}
 
 	if !strings.Contains(existingContent, fmt.Sprintf(mysqldMultiInstanceSectionTemplate, e.MySQLServer.PortNum)) {
@@ -528,7 +546,7 @@ func (e *Engine) stopInstance() error {
 	defer func() {
 		err = conn.Close()
 		if err != nil {
-			log.Errorf("Engine.initMySQLUser(): close mysql connection failed. error:\n%+v", err)
+			log.Errorf("Engine.stopInstance(): close mysql connection failed. error:\n%+v", err)
 		}
 	}()
 
@@ -560,7 +578,7 @@ func (e *Engine) checkInstanceWithMySQLDMulti() (bool, error) {
 			return true, nil
 		}
 
-		log.Warnf("mysqld multi instance is not running. port_num: %d, retry_count: %d", e.MySQLServer.PortNum, i)
+		log.Warnf("mysql Engine.checkInstanceWithMySQLDMulti(): mysqld multi instance is not running. hostIP: %s, portNum: %d, retryCount: %d", e.MySQLServer.HostIP, e.MySQLServer.PortNum, i)
 		time.Sleep(retryInterval)
 		continue
 	}
@@ -590,11 +608,11 @@ func (e *Engine) transferConfigContent(configContent []byte, fileNameSource, fil
 	defer func() {
 		err = fileSource.Close()
 		if err != nil {
-			log.Errorf("Engine.prepareInitConfigFile(): close file source failed. error:\n%+v", err)
+			log.Errorf("Engine.transferConfigContent(): close file source failed. error:\n%+v", err)
 		}
 		err = os.Remove(fileSource.Name())
 		if err != nil {
-			log.Errorf("Engine.prepareInitConfigFile(): remove file source failed. error:\n%+v", err)
+			log.Errorf("Engine.transferConfigContent(): remove file source failed. error:\n%+v", err)
 		}
 	}()
 

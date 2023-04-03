@@ -1,16 +1,8 @@
 package mysql
 
 import (
-	"github.com/romberli/go-util/common"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/log"
-)
-
-const (
-	installOperationType = iota + 1
-	upgradeOperationType
-	removeInstanceOperationType
-	removeBinaryOperationType
 )
 
 type Service struct {
@@ -39,8 +31,7 @@ func newService(repo *DBORepo, engine *Engine) *Service {
 // Install installs the mysql to the target hosts
 func (s *Service) Install() error {
 	// init operation id
-	addrs := common.ConvertStringSliceToString(s.Engine.Addrs, constant.CommaString)
-	operationID, err := s.DBORepo.InitOperationHistory(installOperationType, addrs)
+	operationID, err := s.DBORepo.InitOperationHistory(defaultInstallOperation, s.Engine.Addrs)
 	if err != nil {
 		return err
 	}

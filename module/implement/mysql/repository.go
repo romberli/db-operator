@@ -1,12 +1,12 @@
 package mysql
 
 import (
-	"github.com/romberli/go-util/common"
 	"strings"
-	"time"
 
+	"github.com/pingcap/errors"
 	"github.com/romberli/db-operator/global"
 	"github.com/romberli/db-operator/pkg/message"
+	"github.com/romberli/go-util/common"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/middleware"
 	"github.com/romberli/log"
@@ -15,7 +15,10 @@ import (
 )
 
 const (
-	minRunAgainInterval = 30 * time.Minute
+	defaultInstallOperation = iota + 1
+	defaultUpgradeOperation
+	defaultRemoveInstanceOperation
+	defaultRemoveBinaryOperation
 
 	defaultRunningStatus = 1
 	defaultSuccessStatus = 2
@@ -87,6 +90,10 @@ func (dr *DBORepo) GetOperationHistory(id int) (*OperationInfo, error) {
 		return nil, err
 	}
 
+	if result.RowNumber() == constant.ZeroInt {
+		return nil, errors.Errorf("mysql DBORepo.GetOperationHistory(): no operation history found. id: %d", id)
+	}
+
 	operationInfo := NewOperationInfoWithDefault()
 	err = result.MapToStructByRowIndex(operationInfo, constant.ZeroInt, constant.DefaultMiddlewareTag)
 	if err != nil {
@@ -96,8 +103,8 @@ func (dr *DBORepo) GetOperationHistory(id int) (*OperationInfo, error) {
 	return operationInfo, nil
 }
 
-// GetOperationDetail gets the mysql operation detail from the middleware
-func (dr *DBORepo) GetOperationDetail(operationID int) ([]*OperationDetail, error) {
+// GetOperationDetails gets the mysql operation detail from the middleware
+func (dr *DBORepo) GetOperationDetails(operationID int) ([]*OperationDetail, error) {
 	sql := `
 		SELECT id,
 			   operation_id,
@@ -113,11 +120,15 @@ func (dr *DBORepo) GetOperationDetail(operationID int) ([]*OperationDetail, erro
 		  AND operation_id = ?
 		ORDER BY id ASC
 	`
-	log.Debugf("mysql DBORepo.GetOperationDetail() select sql: \n%s\nplaceholders: %d", sql, operationID)
+	log.Debugf("mysql DBORepo.GetOperationDetails() select sql: \n%s\nplaceholders: %d", sql, operationID)
 
 	result, err := dr.Execute(sql, operationID)
 	if err != nil {
 		return nil, err
+	}
+
+	if result.RowNumber() == constant.ZeroInt {
+		return nil, errors.Errorf("mysql DBORepo.GetOperationDetails(): no operation history detail found. id: %d", operationID)
 	}
 
 	operationDetailList := make([]*OperationDetail, result.RowNumber())
@@ -153,7 +164,7 @@ func (dr *DBORepo) GetLock(operationID int, addrs []string) error {
 	// execute sql
 	_, err := dr.Execute(sql, placeHolders...)
 	if err != nil {
-		return message.NewMessage(msgMySQL.ErrMySQLRepositoryGetLock, err, addrs)
+		return message.NewMessage(msgMySQL.ErrMySQLRepositoryGetLock, err, operationID, addrs)
 	}
 
 	return nil
@@ -164,7 +175,7 @@ func (dr *DBORepo) ReleaseLock(operationID int) error {
 	sql := `DELETE FROM t_mysql_operation_lock WHERE operation_id = ? ;`
 	log.Debugf("mysql DBORepo.ReleaseLock() delete sql: \n%s\nplaceholders: %d", sql, operationID)
 
-	_, err := dr.Execute(sql)
+	_, err := dr.Execute(sql, operationID)
 	if err != nil {
 		return message.NewMessage(msgMySQL.ErrMySQLRepositoryReleaseLock, err, operationID)
 	}
@@ -173,12 +184,13 @@ func (dr *DBORepo) ReleaseLock(operationID int) error {
 }
 
 // InitOperationHistory initializes the mysql operation history in the middleware
-func (dr *DBORepo) InitOperationHistory(operationType int, addrs string) (int, error) {
+func (dr *DBORepo) InitOperationHistory(operationType int, addrs []string) (int, error) {
+	addrsStr := common.ConvertStringSliceToString(addrs, constant.CommaString)
 	sql := `INSERT INTO t_mysql_operation_info(operation_type, addrs, status) VALUES(?, ?, ?) ;`
 	log.Debugf("mysql DBORepo.InitOperationHistory() insert sql: \n%s\nplaceholders: %d, %s",
-		sql, operationType, addrs, operationStatusRunning)
+		sql, operationType, addrsStr, defaultRunningStatus)
 
-	result, err := dr.Execute(sql, operationType, addrs, operationStatusRunning)
+	result, err := dr.Execute(sql, operationType, addrsStr, defaultRunningStatus)
 	if err != nil {
 		return constant.ZeroInt, err
 	}
@@ -201,9 +213,9 @@ func (dr *DBORepo) UpdateOperationHistory(id int, status int, message string) er
 func (dr *DBORepo) InitOperationDetail(operationID int, hostIP string, portNum int) (int, error) {
 	sql := `INSERT INTO t_mysql_operation_detail(operation_id, host_ip, port_num, status) VALUES(?, ?, ?, ?) ;`
 	log.Debugf("mysql DBORepo.InitOperationDetail() insert sql: \n%s\nplaceholders: %d, %s, %d",
-		sql, operationID, hostIP, portNum, operationStatusRunning)
+		sql, operationID, hostIP, portNum, defaultRunningStatus)
 
-	result, err := dr.Execute(sql, operationID, hostIP, portNum, operationStatusRunning)
+	result, err := dr.Execute(sql, operationID, hostIP, portNum, defaultRunningStatus)
 	if err != nil {
 		return constant.ZeroInt, err
 	}
