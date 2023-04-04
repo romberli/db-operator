@@ -1,17 +1,18 @@
 package mysql
 
 import (
+	"github.com/romberli/go-util/constant"
+
 	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"github.com/romberli/db-operator/module/implement/mysql/parameter"
-	"github.com/romberli/go-util/constant"
 )
 
 type InstallMySQL struct {
-	Token            string
-	Mode             mode.Mode
-	Addrs            []string
-	MySQLServerParam *parameter.MySQLServer
-	PMMClientParam   *parameter.PMMClient
+	Token            string                 `json:"token"`
+	Mode             mode.Mode              `json:"mode"`
+	Addrs            []string               `json:"addrs"`
+	MySQLServerParam *parameter.MySQLServer `json:"mysql_server_param"`
+	PMMClientParam   *parameter.PMMClient   `json:"pmm_client_param"`
 }
 
 func NewInstallMySQL(token string, mode mode.Mode, addrs []string,

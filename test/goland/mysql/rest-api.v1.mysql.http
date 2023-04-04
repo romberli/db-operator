@@ -6,5 +6,8 @@ Content-Type: application/json
   "token": "{{token}}",
   "mode": {{mode}},
   "addrs": ["{{hostIP1}}:{{portNum1}}", "{{hostIP2}}:{{portNum2}}"],
-  "mysql_server_param": {"max_connections":  "{{maxConnections}}"}
+  "mysql_server_param": {
+    "version": "{{version}}",
+    "max_connections":  {{maxConnections}}
+  }
 }

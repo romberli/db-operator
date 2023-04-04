@@ -27,8 +27,8 @@ const (
 // @Param	token	 			body string 			   true "token"
 // @Param 	mode 				body int  				   true "mode"
 // @Param   addrs 				body []string 			   true "addrs"
-// @Param   mysqlServerParam	body parameter.MySQLServer true "mysql_server_param"
-// @Param	pmmClientParam		body parameter.PMMClient   true "pmm_client_param"
+// @Param   mysqlServerParam	body *parameter.MySQLServer true "mysql_server_param"
+// @Param	pmmClientParam		body *parameter.PMMClient   true "pmm_client_param"
 // @Produce application/json
 // @Success 200 {string} string "0"
 // @Router	/api/v1/mysql/install [get]
