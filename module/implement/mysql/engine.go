@@ -207,9 +207,12 @@ func (e *Engine) InstallSingleInstance(hostIP string, portNum int, isSource bool
 		return err
 	}
 	// init pmm client
-	err = e.InitPMMClient()
-	if err != nil {
-		return err
+	// TODO: for now, we only support installing pmm client on x64 platform
+	if e.ose.arch == constant.X64Arch {
+		err = e.InitPMMClient()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

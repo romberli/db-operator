@@ -2,16 +2,18 @@ package mysql
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/config"
-	"github.com/romberli/db-operator/module/implement/mysql/parameter"
-	"github.com/romberli/db-operator/pkg/util/ssh"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/log"
 	"github.com/spf13/viper"
+
+	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/module/implement/mysql/parameter"
+	"github.com/romberli/db-operator/pkg/util/ssh"
 )
 
 const (
@@ -70,7 +72,7 @@ func (pe *PMMExecutor) Init() error {
 	var configured bool
 
 	if !installed {
-		if arch == constant.X64Arch {
+		if arch == constant.AArch64Arch {
 			return errors.Errorf("installing pmm client only supports %s arch, %s is not valid", constant.X64Arch, arch)
 		}
 
@@ -133,8 +135,8 @@ func (pe *PMMExecutor) CheckPMMClient() (bool, error) {
 // Install installs pmm client to the host
 func (pe *PMMExecutor) Install() error {
 	pmmClientInstallationPackageName := pe.getInstallationPackageName()
-	fileSource := viper.GetString(config.PMMClientInstallationPackageDirKey) + pmmClientInstallationPackageName
-	fileDest := viper.GetString(config.MySQLInstallationPackageDirKey) + pmmClientInstallationPackageName
+	fileSource := filepath.Join(viper.GetString(config.PMMClientInstallationPackageDirKey), pmmClientInstallationPackageName)
+	fileDest := filepath.Join(viper.GetString(config.MySQLInstallationPackageDirKey), pmmClientInstallationPackageName)
 	err := pe.sshConn.CopySingleFileToRemote(fileSource, fileDest)
 	if err != nil {
 		return err
