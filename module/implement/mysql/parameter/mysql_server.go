@@ -9,12 +9,14 @@ import (
 
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
+	"github.com/spf13/viper"
+
+	"github.com/romberli/go-util/constant"
+
 	"github.com/romberli/db-operator/config"
 	"github.com/romberli/db-operator/module/implement/mysql/mode"
 	"github.com/romberli/db-operator/module/implement/mysql/parameter/tmpl"
 	"github.com/romberli/db-operator/pkg/util/mysql"
-	"github.com/romberli/go-util/constant"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -260,6 +262,12 @@ func (ms *MySQLServer) SetSemiSyncSourceEnabled(semiSyncSourceEnabled int) {
 // SetSemiSyncReplicaEnabled sets the semi-sync replica enabled
 func (ms *MySQLServer) SetSemiSyncReplicaEnabled(semiSyncReplicaEnabled int) {
 	ms.SemiSyncReplicaEnabled = semiSyncReplicaEnabled
+}
+
+// SetVersion sets the version, it also sets the binary dir base
+func (ms *MySQLServer) SetVersion(version string) {
+	ms.Version = version
+	ms.BinaryDirBase = fmt.Sprintf(DefaultBinaryDirBaseTemplate, version)
 }
 
 // InitWithHostInfo initialize the MySQLServer with given host info

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
+
 	"github.com/romberli/go-util/linux"
 
 	"github.com/romberli/db-operator/module/implement/mysql"
@@ -40,7 +41,7 @@ func Install(c *gin.Context) {
 	}
 
 	installMySQL := jsonmysql.NewInstallMySQLWithDefault()
-	err = json.Unmarshal(data, &installMySQL)
+	err = installMySQL.Unmarshal(data)
 	if err != nil {
 		resp.ResponseNOK(c, message.ErrUnmarshalRawData, errors.Trace(err))
 		return
