@@ -62,8 +62,8 @@ server:
   # description: specify the server listening address, format: host:port
   # command-line-argument: --server-addr
   # type: string
-  # default: 0.0.0.0:3160
-  addr: "0.0.0.0:3160"
+  # default: 0.0.0.0:8510
+  addr: "0.0.0.0:8510"
   # description: pid file path, if it's specified as relative path,
   # then directory of binary file will be the base directory of log file,
   # it is recommended to specify absolute path.

@@ -41,7 +41,7 @@ const (
 	MaxLogMaxBackups       = constant.MaxInt
 	DefaultRotateOnStartup = false
 	// server
-	DefaultServerAddr                      = "0.0.0.0:3160"
+	DefaultServerAddr                      = "0.0.0.0:8510"
 	DefaultServerReadTimeout               = 5
 	DefaultServerWriteTimeout              = 10
 	MinServerReadTimeout                   = 0
