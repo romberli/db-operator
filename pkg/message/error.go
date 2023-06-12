@@ -105,6 +105,8 @@ func initErrorMessage() {
 	Messages[ErrNotValidDBPoolInitConnections] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidDBPoolInitConnections, "database initial connections must be between %d and %d, %d is not valid")
 	Messages[ErrNotValidDBPoolMaxIdleConnections] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidDBPoolMaxIdleConnections, "database max idle connections must be between %d and %d, %d is not valid")
 	Messages[ErrNotValidDBPoolMaxIdleTime] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidDBPoolMaxIdleTime, "database max idle time must be between %d and %d, %d is not valid")
+	Messages[ErrNotValidDBPoolMaxWaitTime] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidDBPoolMaxWaitTime, "database max wait time must be between %d and %d, %d is not valid")
+	Messages[ErrNotValidDBPoolMaxRetryCount] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidDBPoolMaxRetryCount, "database max retry count must be between %d and %d, %d is not valid")
 	Messages[ErrNotValidDBPoolKeepAliveInterval] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidDBPoolKeepAliveInterval, "database keep alive interval must be between %d and %d, %d is not valid")
 	Messages[ErrInitConnectionPool] = config.NewErrMessage(DefaultMessageHeader, ErrInitConnectionPool, "init connection pool failed.")
 	Messages[ErrNotValidServerReadTimeout] = config.NewErrMessage(DefaultMessageHeader, ErrNotValidServerReadTimeout, "server read timeout must be between %d and %d, %d is not valid")
