@@ -34,7 +34,7 @@ func NewMessage(code int, values ...interface{}) *config.ErrMessage {
 	if len(values) > constant.ZeroInt {
 		err, ok := values[constant.ZeroInt].(error)
 		if ok {
-			return Messages[code].Renew(values[1:]...).SetError(err)
+			return Messages[code].Renew(values[constant.OneInt:]...).SetError(err)
 		}
 	}
 
