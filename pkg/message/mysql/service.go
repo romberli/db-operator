@@ -1,8 +1,9 @@
 package mysql
 
 import (
-	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-util/config"
+
+	"github.com/romberli/db-operator/pkg/message"
 )
 
 func init() {
