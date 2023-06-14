@@ -21,7 +21,7 @@ thread_cache_size=512
 sql_mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION,PIPES_AS_CONCAT,ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO
 #tls_version=''
 
-#plugin_load="rpl_semi_sync_source=semisync_source.so;rpl_semi_sync_replica=semisync_replica.so"
+#plugin_load_add="rpl_semi_sync_source=semisync_source.so;rpl_semi_sync_replica=semisync_replica.so"
 #rpl_semi_sync_source_wait_point=after_sync
 #rpl_semi_sync_source_enabled={{.SemiSyncSourceEnabled}}
 #rpl_semi_sync_replica_enabled={{.SemiSyncReplicaEnabled}}
@@ -29,6 +29,7 @@ sql_mode=STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION,PIPES_AS_CONCAT,ONLY_FULL_GR
 #rpl_semi_sync_source_wait_for_replica_count=1
 #rpl_semi_sync_source_wait_no_replica=1
 
+#plugin_load_add='group_replication.so'
 #group_replication_single_primary_mode=on
 #group_replication_consistency={{.GroupReplicationConsistency}}
 #group_replication_flow_control_mode={{.GroupReplicationFlowControlMode}}
