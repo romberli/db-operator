@@ -1,7 +1,7 @@
 # description: configuration file path, if it's specified as relative path,
 # then directory of binary file will be the base directory of configuration file,
 # it is recommended to specify absolute path.
-# command-line-argument: --mysql
+# command-line-argument: --config
 # type: string
 # default: None
 config: db_operator.yaml
