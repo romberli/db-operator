@@ -8,16 +8,17 @@ import (
 	"github.com/buger/jsonparser"
 	"github.com/gin-gonic/gin"
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/config"
-	"github.com/romberli/db-operator/global"
-	"github.com/romberli/db-operator/pkg/message"
-	"github.com/romberli/db-operator/pkg/message/router"
-	"github.com/romberli/db-operator/pkg/resp"
 	"github.com/romberli/go-util/common"
 	"github.com/romberli/go-util/constant"
 	"github.com/romberli/go-util/middleware"
 	"github.com/romberli/log"
 	"github.com/spf13/viper"
+
+	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/global"
+	"github.com/romberli/db-operator/pkg/message"
+	"github.com/romberli/db-operator/pkg/message/router"
+	"github.com/romberli/db-operator/pkg/resp"
 )
 
 const (
