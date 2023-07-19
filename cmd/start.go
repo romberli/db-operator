@@ -151,7 +151,7 @@ var startCmd = &cobra.Command{
 			// start server
 			go s.Run()
 
-			log.CloneStdoutLogger().Info(message.NewMessage(message.InfoServerStart, s.Addr(), serverPid, serverPidFile).Error())
+			log.Info(message.NewMessage(message.InfoServerStart, s.Addr(), serverPid, serverPidFile).Error())
 
 			// handle signal
 			linux.HandleSignals(serverPidFile, s.Stop)
