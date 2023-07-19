@@ -7,12 +7,13 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/hashicorp/go-version"
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-multierror"
 	"github.com/romberli/go-util/common"
 	"github.com/romberli/go-util/constant"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
+
+	"github.com/romberli/db-operator/pkg/message"
 
 	msgMySQL "github.com/romberli/db-operator/pkg/message/mysql"
 	msgPMM "github.com/romberli/db-operator/pkg/message/pmm"
@@ -154,6 +155,12 @@ func ValidateLog() error {
 
 	// validate log.rotateOnStartup
 	_, err = cast.ToBoolE(viper.Get(LogRotateOnStartupKey))
+	if err != nil {
+		merr = multierror.Append(merr, errors.Trace(err))
+	}
+
+	// validate log.stdout
+	_, err = cast.ToBoolE(viper.Get(LogStdoutKey))
 	if err != nil {
 		merr = multierror.Append(merr, errors.Trace(err))
 	}

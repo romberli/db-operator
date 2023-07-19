@@ -56,6 +56,13 @@ log:
   # type: bool
   # default: false
   rotateOnStartup: false
+  # description: specify if logging the message to the stdout as well
+  # if no, log message will only be logged to the log file,
+  # if yes, log message will be logged to the log file and stdout.
+  # command-line-argument: --log-stdout
+  # type: bool
+  # default: false
+  stdout: false
 
 # server configuration
 server:

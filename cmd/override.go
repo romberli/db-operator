@@ -1,14 +1,16 @@
 package cmd
 
 import (
+	"strings"
+
 	"github.com/pingcap/errors"
-	"github.com/romberli/db-operator/config"
-	"github.com/romberli/db-operator/pkg/message"
 	"github.com/romberli/go-multierror"
 	"github.com/romberli/go-util/constant"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
-	"strings"
+
+	"github.com/romberli/db-operator/config"
+	"github.com/romberli/db-operator/pkg/message"
 )
 
 // OverrideConfigByCLI read configuration from command line interface, it will override the config file configuration
@@ -102,6 +104,14 @@ func overrideLogByCLI() error {
 		}
 
 		viper.Set(config.LogRotateOnStartupKey, rotateOnStartup)
+	}
+	if logStdoutStr != constant.DefaultRandomString {
+		logStdout, err := cast.ToBoolE(logStdoutStr)
+		if err != nil {
+			return errors.Trace(err)
+		}
+
+		viper.Set(config.LogStdoutKey, logStdout)
 	}
 
 	return nil

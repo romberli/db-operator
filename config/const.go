@@ -40,6 +40,7 @@ const (
 	MinLogMaxBackups       = 1
 	MaxLogMaxBackups       = constant.MaxInt
 	DefaultRotateOnStartup = false
+	DefaultLogStdout       = false
 	// server
 	DefaultServerAddr                      = "0.0.0.0:8510"
 	DefaultServerReadTimeout               = 5
@@ -122,6 +123,7 @@ const (
 	LogMaxDaysKey         = "log.maxDays"
 	LogMaxBackupsKey      = "log.maxBackups"
 	LogRotateOnStartupKey = "log.rotateOnStartup"
+	LogStdoutKey          = "log.stdout"
 	// server
 	ServerAddrKey                      = "server.addr"
 	ServerPidFileKey                   = "server.pidFile"

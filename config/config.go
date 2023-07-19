@@ -18,10 +18,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/romberli/go-util/middleware/mysql"
-	"github.com/romberli/log"
 	"path/filepath"
 	"strings"
+
+	"github.com/romberli/go-util/middleware/mysql"
+	"github.com/romberli/log"
 
 	"github.com/romberli/go-util/constant"
 	"github.com/spf13/viper"
@@ -64,6 +65,7 @@ func SetDefaultLog(baseDir string) {
 	viper.SetDefault(LogMaxDaysKey, log.DefaultLogMaxDays)
 	viper.SetDefault(LogMaxBackupsKey, log.DefaultLogMaxBackups)
 	viper.SetDefault(LogRotateOnStartupKey, DefaultRotateOnStartup)
+	viper.SetDefault(LogStdoutKey, DefaultLogStdout)
 }
 
 // SetDefaultServer sets the default value of server
