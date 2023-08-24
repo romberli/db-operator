@@ -120,7 +120,7 @@ func (ta *TokenAuth) GetHandlerFunc(tokens []string) gin.HandlerFunc {
 			return
 		}
 
-		if !common.StringInSlice(tokens, token) {
+		if !common.ElementInSlice(tokens, token) {
 			// not a valid token
 			resp.ResponseNOK(c, router.ErrRouterValidateToken, token, c.ClientIP())
 			c.Abort()

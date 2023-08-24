@@ -287,8 +287,8 @@ github.com/romberli/dynamic-struct v1.2.1 h1:vle/rxIUl7IgreLScMSg9RhYBjygY/5Hj/O
 github.com/romberli/dynamic-struct v1.2.1/go.mod h1:Jk2Z0Dm0diV7O4Lg1MfIyJ0kvOxfN+imwZVO5SOUL94=
 github.com/romberli/go-multierror v1.1.2 h1:N+V1fad4Av+ALUSu2NZUPGq1Czus6k7/qQnrQxZm7IA=
 github.com/romberli/go-multierror v1.1.2/go.mod h1:zl7X0Cn5uTu9unezPrgXXsrQAq2Nj/6Cne0qJkFiAOs=
-github.com/romberli/go-util v0.3.18-0.20230824090724-cef0ece550e7 h1:vfQDEwdyvRt0vLVz/7Tzn9ekVXIMGkOZMeCCCm/aVes=
-github.com/romberli/go-util v0.3.18-0.20230824090724-cef0ece550e7/go.mod h1:unaD5iET2Wn5SU1JM9rROGPktCeJtayBL52qagPbbL0=
+github.com/romberli/go-util v0.3.18-0.20230824104336-dd4cc54fb877 h1:7W4YmfQ6b5e7rLAQmiesaavC7w2QcQ9dICT5LnTBSdQ=
+github.com/romberli/go-util v0.3.18-0.20230824104336-dd4cc54fb877/go.mod h1:unaD5iET2Wn5SU1JM9rROGPktCeJtayBL52qagPbbL0=
 github.com/romberli/log v1.0.27 h1:TurrUbozB2jWz2TeQh102AJJfHcvwYeMQMoIHOMfv7c=
 github.com/romberli/log v1.0.27/go.mod h1:+kxqJsmFpYSnahoDbF190ETROxZiw+LTGLQScT8jXPE=
 github.com/romberli/pflag v1.0.6-alpha h1:eSC9Fc/QxWpxrj1QbMitsULOGLhSUxxgymfz+XRpfI8=
