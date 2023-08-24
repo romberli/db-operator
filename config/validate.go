@@ -105,10 +105,7 @@ func ValidateLog() error {
 	if err != nil {
 		merr = multierror.Append(merr, errors.Trace(err))
 	}
-	valid, err = common.ElementInSlice(ValidLogLevels, logLevel)
-	if err != nil {
-		merr = multierror.Append(merr, err)
-	}
+	valid = common.StringInSlice(ValidLogLevels, logLevel)
 	if !valid {
 		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidLogLevel, logLevel))
 	}
@@ -118,10 +115,7 @@ func ValidateLog() error {
 	if err != nil {
 		merr = multierror.Append(merr, errors.Trace(err))
 	}
-	valid, err = common.ElementInSlice(ValidLogFormats, logFormat)
-	if err != nil {
-		merr = multierror.Append(merr, err)
-	}
+	valid = common.StringInSlice(ValidLogFormats, logFormat)
 	if !valid {
 		merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidLogFormat, logFormat))
 	}
@@ -249,10 +243,7 @@ func ValidateServer() error {
 	if err != nil {
 		merr = multierror.Append(merr, errors.Trace(err))
 	} else {
-		valid, err := common.ElementInSlice(ValidServerRouterHTTPErrorCodes, serverRouterHttpErrorCode)
-		if err != nil {
-			merr = multierror.Append(merr, err)
-		}
+		valid := common.ElementInSlice[int](ValidServerRouterHTTPErrorCodes, serverRouterHttpErrorCode)
 		if !valid {
 			merr = multierror.Append(merr, message.NewMessage(message.ErrNotValidServerRouterHTTPErrorCode, serverRouterHttpErrorCode))
 		}
