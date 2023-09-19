@@ -1,6 +1,6 @@
 module github.com/romberli/db-operator
 
-go 1.18
+go 1.19
 
 replace github.com/spf13/pflag v1.0.5 => github.com/romberli/pflag v1.0.6-alpha
 
@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/go-version v1.6.0
 	github.com/pingcap/errors v0.11.5-0.20211224045212-9687c2b0f87c
 	github.com/romberli/go-multierror v1.1.2
-	github.com/romberli/go-util v0.3.18-0.20230824104336-dd4cc54fb877
+	github.com/romberli/go-util v0.3.18-0.20230913092407-ac3baeeeb329
 	github.com/romberli/log v1.0.27
 	github.com/spf13/cast v1.5.1
 	github.com/spf13/cobra v1.7.0
@@ -21,13 +21,13 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
-	github.com/swaggo/swag v1.16.1
-	go.uber.org/zap v1.25.0
+	github.com/swaggo/swag v1.16.2
+	go.uber.org/zap v1.26.0
 )
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/bytedance/sonic v1.10.0-rc // indirect
+	github.com/bytedance/sonic v1.10.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

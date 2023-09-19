@@ -160,7 +160,7 @@ func (dr *DBORepo) GetLock(operationID int, addrs []string) error {
 		placeHolders[i*constant.TwoInt+constant.OneInt] = addrs[i]
 	}
 	log.Debugf("mysql DBORepo.GetLock() insert sql: \n%s\noperation_id: %d, addrs: %v",
-		sql, operationID, common.ConvertStringSliceToString(addrs, constant.CommaString))
+		sql, operationID, common.ConvertSliceToString(addrs, constant.CommaString))
 
 	// execute sql
 	_, err := dr.Execute(sql, placeHolders...)
@@ -186,7 +186,7 @@ func (dr *DBORepo) ReleaseLock(operationID int) error {
 
 // InitOperationHistory initializes the mysql operation history in the middleware
 func (dr *DBORepo) InitOperationHistory(operationType int, addrs []string) (int, error) {
-	addrsStr := common.ConvertStringSliceToString(addrs, constant.CommaString)
+	addrsStr := common.ConvertSliceToString(addrs, constant.CommaString)
 	sql := `INSERT INTO t_mysql_operation_info(operation_type, addrs, status) VALUES(?, ?, ?) ;`
 	log.Debugf("mysql DBORepo.InitOperationHistory() insert sql: \n%s\nplaceholders: %d, %s",
 		sql, operationType, addrsStr, defaultRunningStatus)
